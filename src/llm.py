@@ -1,10 +1,15 @@
 import torch
+import torch.nn.functional as F
+
+from models import CharModel
+
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print('Device: {}'.format(device))
 
 # Step 0 - Hyperparameters
 block_size = 8
 batch_size = 32
+embedding_dim = 100
 print('Block size: {}'.format(block_size))
 print('Batch size: {}'.format(batch_size))
 
@@ -41,7 +46,7 @@ n_train = int(len(data) * train_frac)
 train = [i < n_train for i in range(len(data))]
 test = [i >= n_train for i in range(len(data))]
 
-# Step 4 - Use a sliding window approach to model 
-
+# Step 4 - Create the model
+model = CharModel(vocab_size, embedding_dim)
 
 # Step 5 - Train the model
