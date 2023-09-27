@@ -20,7 +20,16 @@ class Encoder():
         return ''.join([self.int_to_str[i] for i in int_arr])
     
 encoder = Encoder(chars)
+data = encoder.encode(text)
+print(data[:50])
 
 # Step 3 - Split data into training and testing partitions
+# training: Used to fit the model
+# testing: Used to determine when terminate fitting
+train_frac = 0.8
+n_train = int(len(data) * train_frac)
+
+train = [i < n_train for i in range(len(data))]
+test = [i >= n_train for i in range(len(data))]
 
 # Step 4 - Implement the bigram model
