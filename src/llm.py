@@ -2,6 +2,7 @@ import torch
 import torch.nn.functional as F
 
 from models import CharModel
+from text_preprocessing import Encoder
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print('Device: {}'.format(device))
@@ -20,17 +21,7 @@ chars = sorted(set(text))
 vocab_size = len(chars)
 
 # Step 2 - Create an encoder to decompose strings into integer arrays
-class Encoder():
-    def __init__(self, all_chars):
-        self.str_to_int = {char: i for i, char in enumerate(all_chars)}
-        self.int_to_str = {
-            value: key for value, key in enumerate(self.str_to_int)}
 
-    def encode(self, string):
-        return [self.str_to_int[char] for char in string]
-
-    def decode(self, int_arr):
-        return ''.join([self.int_to_str[i] for i in int_arr])
     
 encoder = Encoder(chars)
 data = encoder.encode(text)
