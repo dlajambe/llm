@@ -7,23 +7,23 @@ from text_preprocessing import Encoder
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print('Device: {}'.format(device))
 
-# Step 0 - Hyperparameters
+# Step 0 - Define hyperparameters.
+# These parameters can be modified / tuned to improve model performance
 block_size = 8
 batch_size = 32
 embedding_dim = 100
 print('Block size: {}'.format(block_size))
 print('Batch size: {}'.format(batch_size))
+print('Embedding dim: {}'.format(embedding_dim))
 
 # Step 1 - Import the data
 with open('data/wizard_of_oz.txt', 'r', encoding='utf-8') as f:
     text = f.read()
-chars = sorted(set(text))
-vocab_size = len(chars)
+char_set = sorted(set(text))
+vocab_size = len(char_set)
 
 # Step 2 - Create an encoder to decompose strings into integer arrays
-
-    
-encoder = Encoder(chars)
+encoder = Encoder(char_set)
 data = encoder.encode(text)
 print('Unencoded data sample: {}'.format(text[:10]))
 print('Encoded data sample: {}'.format(data[:10]))
@@ -41,3 +41,5 @@ test = [i >= n_train for i in range(len(data))]
 model = CharModel(vocab_size, embedding_dim)
 
 # Step 5 - Train the model
+test = torch.tensor([0.1, 1.0])
+print(type(test))

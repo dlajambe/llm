@@ -1,15 +1,15 @@
 import torch
 import torch.nn as nn
 class CharModel(nn.Module):
-    def __init__(self, n_unique_chars, embedding_dim):
+    def __init__(self, vocab_size, embedding_dim):
         super(CharModel, self).__init__()
-        self.embeddings = nn.Embedding(n_unique_chars, embedding_dim)
+        self.embeddings = nn.Embedding(vocab_size, embedding_dim)
 
-    def forward(self):
+    def forward(self, X: torch.Tensor) -> None:
         pass
 
-    def train(self):
+    def train(self, X: torch.Tensor, y: torch.Tensor) -> None:
         pass
 
-    def predict(self):
+    def predict(self) -> torch.Tensor:
         pass
