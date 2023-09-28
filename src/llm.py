@@ -25,21 +25,26 @@ vocab_size = len(char_set)
 # Step 2 - Create an encoder to decompose strings into integer arrays
 encoder = Encoder(char_set)
 data = encoder.encode(text)
-print('Unencoded data sample: {}'.format(text[:10]))
-print('Encoded data sample: {}'.format(data[:10]))
+print('Unencoded data sample: {}'.format(text[:block_size]))
+print('Encoded data sample: {}'.format(data[:block_size]))
 
-# Step 3 - Split data into training and testing partitions
+# Step 3 - Generate matrices to store X and y data
+n_samples = len(data) - block_size
+X = torch.tensor([data[i:block_size + i] for i in range(n_samples)])
+y = torch.tensor([data[block_size + i] for i in range(n_samples)])
+
+# Step 3 - Split data into training and validation partitions
 # training: Used to fit the model
-# testing: Used to determine when terminate fitting
+# validation: Used to determine the optimal point to terminate training
 train_frac = 0.8
-n_train = int(len(data) * train_frac)
+n_train = int(n_samples * train_frac)
+n_train = 1
 
-train = [i < n_train for i in range(len(data))]
-test = [i >= n_train for i in range(len(data))]
+# The data are partitioned chronologically to preserve the char sequence
+train = [i < n_train for i in range(n_samples)]
+val = [i >= n_train for i in range(n_samples)]
 
 # Step 4 - Create the model
 model = CharModel(vocab_size, embedding_dim)
 
 # Step 5 - Train the model
-test = torch.tensor([0.1, 1.0])
-print(type(test))
