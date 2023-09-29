@@ -1,9 +1,8 @@
 import torch
 import torch.nn.functional as F
-
 from models import CharModel
 from text_preprocessing import Encoder
-
+from data_helpers import NGramDataSet
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print('Device: {}'.format(device))
 
@@ -38,11 +37,13 @@ y = torch.tensor([data[block_size + i] for i in range(n_samples)])
 # validation: Used to determine the optimal point to terminate training
 train_frac = 0.8
 n_train = int(n_samples * train_frac)
-n_train = 1
 
 # The data are partitioned chronologically to preserve the char sequence
-train = [i < n_train for i in range(n_samples)]
+train = torch.tensor([i < n_train for i in range(n_samples)])
 val = [i >= n_train for i in range(n_samples)]
+
+data_train = NGramDataSet(X[train], y[train])
+data_val = NGramDataSet(X[val], y[val])
 
 # Step 4 - Create the model
 model = CharModel(vocab_size, embedding_dim)
