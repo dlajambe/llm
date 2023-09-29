@@ -3,6 +3,8 @@ import torch.nn.functional as F
 from models import CharModel
 from text_preprocessing import Encoder
 from data_helpers import NGramDataSet
+from torch.utils.data import DataLoader
+
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print('Device: {}'.format(device))
 
@@ -44,6 +46,8 @@ val = [i >= n_train for i in range(n_samples)]
 
 data_train = NGramDataSet(X[train], y[train])
 data_val = NGramDataSet(X[val], y[val])
+
+loader_train = DataLoader(data_train, batch_size)
 
 # Step 4 - Create the model
 model = CharModel(vocab_size, embedding_dim)

@@ -1,5 +1,5 @@
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
 class NGramDataSet(Dataset):
     def __init__(self, X: torch.Tensor, y: torch.Tensor) -> None:
