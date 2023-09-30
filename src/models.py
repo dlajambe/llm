@@ -1,43 +1,51 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from data_helpers import get_batch
 
 class BiGramModel(nn.Module):
     def __init__(self, vocab_size):
         super(BiGramModel, self).__init__()
         self.embeddings = nn.Embedding(vocab_size, vocab_size)
-        self.loss_function = nn.CrossEntropyLoss()
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         if type(x) != torch.Tensor:
             raise ValueError('Expected Tensor, received {}'.format(type(x)))
-
+        
         logits = self.embeddings(x)
-        n_samples, sample_length, vocab_size = logits.shape
 
-        # Reshaping in this way gives the embeddings for all characters
-        # received in X
-        logits = logits.view(n_samples*sample_length, vocab_size)
-        return logits
+        # nn.Embedding outputs a B x T x C tensor, where:
+        # B = batch size, i.e. number of samples (batch_size)
+        # T = time, i.e. the length of each sample (block_size)
+        # C = channels, i.e. the number of embeddings
+        B, T, C = logits.shape
+
+        # Pytorch's cross entropy loss function requires a N x C tensor
+        logits = logits.view(B*T, C)
+        loss = None
+        if y != None:
+            y = y.view(B*T)
+            loss = F.cross_entropy(logits, y)
+        return logits, loss
     
     def generate(self, context: torch.Tensor, output_length: int) -> list:
-        output = [int(context[-1, -1])]
+        output = context
         for i in range(output_length):
-            x = torch.tensor([output[-1]])
-            x = x.view(1, 1)
-            logits = self.forward(x)
+            logits, loss = self.forward(context, None)
             probs = F.softmax(logits, dim=-1)
             # The char with the highest probability is retained
             # Could also use torch.multinomial() to pick next char
-            output.append(int(torch.multinomial(probs, num_samples=1)))
+            next_idx = torch.multinomial(probs, num_samples=1)
+            output = torch.cat((output, next_idx))
         return output
     
-    def train(self, X: torch.Tensor, targets: torch.Tensor) -> None:
+    def train(self, data_train: torch.Tensor, 
+              batch_size: int, block_size: int) -> None:
         optimizer = torch.optim.Adam(self.parameters(), lr=0.1)
-        for i in range(5):
+        for _ in range(5):
+            xb, yb = get_batch(data_train, batch_size, block_size)
             optimizer.zero_grad(set_to_none=True)
-            logits = self.forward(X)
-            loss = self.loss_function(logits, targets)
+            logits, loss = self.forward(xb, yb)
             loss.backward()
             optimizer.step()
 
