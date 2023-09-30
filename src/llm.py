@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from models import CharModel
+from models import BiGramModel, CharModel
 from text_preprocessing import Encoder
 from data_helpers import NGramDataSet
 from torch.utils.data import DataLoader
@@ -50,6 +50,6 @@ data_val = NGramDataSet(X[val], y[val])
 loader_train = DataLoader(data_train, batch_size)
 
 # Step 4 - Create the model
-model = CharModel(vocab_size, embedding_dim)
-
+model = BiGramModel(vocab_size)
+a = model.forward(X[:5])
 # Step 5 - Train the model
