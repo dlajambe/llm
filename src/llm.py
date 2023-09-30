@@ -10,7 +10,7 @@ print('Device: {}'.format(device))
 
 # Step 0 - Define hyperparameters.
 # These parameters can be modified / tuned to improve model performance
-block_size = 8
+block_size = 1
 batch_size = 32
 embedding_dim = 100
 print('Block size: {}'.format(block_size))
@@ -52,9 +52,10 @@ loader_train = DataLoader(data_train, batch_size)
 # Step 4 - Create the model
 model = BiGramModel(vocab_size)
 
-output_encoded = model.generate(1, 10)
-
 # Step 5 - Train the model
+# TODO: Push everything to GPU to improve training speed
+model.train(X, y)
 
 # Step 6 - Have some fun with text generation
+output_encoded = model.generate(X[[100]], 1000)
 print('Generated text: {}'.format(encoder.decode(output_encoded)))

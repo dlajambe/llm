@@ -6,35 +6,41 @@ class BiGramModel(nn.Module):
     def __init__(self, vocab_size):
         super(BiGramModel, self).__init__()
         self.embeddings = nn.Embedding(vocab_size, vocab_size)
+        self.loss_function = nn.CrossEntropyLoss()
 
-    def forward(self, indices: list) -> None:
-        # print('\tindices: {}'.format(indices))
-        # print('\ttype(indices): {}'.format(type(indices)))
-        x = torch.tensor(indices, dtype=torch.int64)
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        if type(x) != torch.Tensor:
+            raise ValueError('Expected Tensor, received {}'.format(type(x)))
+
         logits = self.embeddings(x)
-        logits = F.softmax(logits, dim=-1)
-        #n_samples, sample_length, vocab_size = logits.shape
+        n_samples, sample_length, vocab_size = logits.shape
 
         # Reshaping in this way gives the embeddings for all characters
         # received in X
-        #logits = logits.view(n_samples*sample_length, vocab_size)
-        #print('\tlogits: {}'.format(logits))
+        logits = logits.view(n_samples*sample_length, vocab_size)
         return logits
     
-    def generate(self, idx: int, output_length: int) -> list:
-        output = [idx]
+    def generate(self, context: torch.Tensor, output_length: int) -> list:
+        output = [int(context[-1, -1])]
         for i in range(output_length):
-            # print('{}: =============================='.format(i))
-            # print('\toutput: {}'.format(output))
-            logits = self.forward([output[-1]])
-            output.append(int(torch.argmax(logits)))
+            x = torch.tensor([output[-1]])
+            x = x.view(1, 1)
+            logits = self.forward(x)
+            probs = F.softmax(logits, dim=-1)
+            # The char with the highest probability is retained
+            # Could also use torch.multinomial() to pick next char
+            output.append(int(torch.multinomial(probs, num_samples=1)))
+
         return output
-
-    def calc_loss(self, logits: torch.Tensor, targets: torch.Tensor) -> float:
-        pass
-
-    def train(self, X: torch.Tensor, y: torch.Tensor) -> None:
-        pass
+    
+    def train(self, X: torch.Tensor, targets: torch.Tensor) -> None:
+        optimizer = torch.optim.Adam(self.parameters(), lr=0.1)
+        for i in range(100):
+            optimizer.zero_grad(set_to_none=True)
+            logits = self.forward(X)
+            loss = self.loss_function(logits, targets)
+            loss.backward()
+            optimizer.step()
 
     def predict(self) -> torch.Tensor:
         pass
