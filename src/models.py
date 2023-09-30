@@ -30,12 +30,11 @@ class BiGramModel(nn.Module):
             # The char with the highest probability is retained
             # Could also use torch.multinomial() to pick next char
             output.append(int(torch.multinomial(probs, num_samples=1)))
-
         return output
     
     def train(self, X: torch.Tensor, targets: torch.Tensor) -> None:
         optimizer = torch.optim.Adam(self.parameters(), lr=0.1)
-        for i in range(100):
+        for i in range(5):
             optimizer.zero_grad(set_to_none=True)
             logits = self.forward(X)
             loss = self.loss_function(logits, targets)

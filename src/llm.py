@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 from models import BiGramModel, CharModel
-from text_preprocessing import Encoder
+from text_preprocessing import CharTokenizer
 from data_helpers import NGramDataSet
 from torch.utils.data import DataLoader
 
@@ -23,9 +23,9 @@ with open('data/wizard_of_oz.txt', 'r', encoding='utf-8') as f:
 char_set = sorted(set(text))
 vocab_size = len(char_set)
 
-# Step 2 - Create an encoder to decompose strings into integer arrays
-encoder = Encoder(char_set)
-data = encoder.encode(text)
+# Step 2 - Create an tokenizer to decompose strings into integer arrays
+tokenizer = CharTokenizer(char_set)
+data = tokenizer.encode(text)
 print('Unencoded data sample: {}'.format(text[:block_size]))
 print('Encoded data sample: {}'.format(data[:block_size]))
 
@@ -58,4 +58,4 @@ model.train(X, y)
 
 # Step 6 - Have some fun with text generation
 output_encoded = model.generate(X[[100]], 1000)
-print('Generated text: {}'.format(encoder.decode(output_encoded)))
+print('Generated text: {}'.format(tokenizer.decode(output_encoded)))

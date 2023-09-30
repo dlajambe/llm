@@ -1,5 +1,7 @@
-class Encoder():
-    """Converts strings to integer arrays, and vice versa.
+class CharTokenizer():
+    """A simple character-level tokenizer.
+    
+    Converts strings to integer arrays, and vice versa.
     """
     def __init__(self, all_chars: list) -> None:
         """Initializes the Encoder by generating a string-to-integer
