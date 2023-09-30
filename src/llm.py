@@ -51,5 +51,10 @@ loader_train = DataLoader(data_train, batch_size)
 
 # Step 4 - Create the model
 model = BiGramModel(vocab_size)
-a = model.forward(X[:5])
+
+output_encoded = model.generate(1, 10)
+
 # Step 5 - Train the model
+
+# Step 6 - Have some fun with text generation
+print('Generated text: {}'.format(encoder.decode(output_encoded)))

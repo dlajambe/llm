@@ -7,21 +7,28 @@ class BiGramModel(nn.Module):
         super(BiGramModel, self).__init__()
         self.embeddings = nn.Embedding(vocab_size, vocab_size)
 
-    def forward(self, X: torch.Tensor) -> None:
-        logits = self.embeddings(X)
-        print(logits.shape)
-        n_samples, sample_length, vocab_size = logits.shape
+    def forward(self, indices: list) -> None:
+        # print('\tindices: {}'.format(indices))
+        # print('\ttype(indices): {}'.format(type(indices)))
+        x = torch.tensor(indices, dtype=torch.int64)
+        logits = self.embeddings(x)
+        logits = F.softmax(logits, dim=-1)
+        #n_samples, sample_length, vocab_size = logits.shape
 
         # Reshaping in this way gives the embeddings for all characters
         # received in X
-        logits = logits.view(n_samples*sample_length, vocab_size)
-
+        #logits = logits.view(n_samples*sample_length, vocab_size)
+        #print('\tlogits: {}'.format(logits))
         return logits
     
-    def generate(self, idx, output_length):
+    def generate(self, idx: int, output_length: int) -> list:
         output = [idx]
         for i in range(output_length):
-            output.append(self.forward())
+            # print('{}: =============================='.format(i))
+            # print('\toutput: {}'.format(output))
+            logits = self.forward([output[-1]])
+            output.append(int(torch.argmax(logits)))
+        return output
 
     def calc_loss(self, logits: torch.Tensor, targets: torch.Tensor) -> float:
         pass
