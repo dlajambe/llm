@@ -47,7 +47,10 @@ model = BiGramModel(vocab_size)
 # # Step 5 - Train the model
 # # TODO: Push everything to GPU to improve training speed
 model.train(data_train, batch_size, block_size)
-generated = model.generate(data[:4], 100)
+context = torch.zeros((1, 1), dtype=torch.long)
+generated = model.generate(context, 100)
+
+print(tokenizer.decode(generated.tolist()[0]))
 # # Step 6 - Have some fun with text generation
 # output_encoded = model.generate(X[[100]], 1000)
 # print('Generated text: {}'.format(tokenizer.decode(output_encoded)))

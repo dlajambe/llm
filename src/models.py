@@ -8,7 +8,7 @@ class BiGramModel(nn.Module):
         super(BiGramModel, self).__init__()
         self.embeddings = nn.Embedding(vocab_size, vocab_size)
 
-    def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, y: torch.Tensor=None) -> torch.Tensor:
         if type(x) != torch.Tensor:
             raise ValueError('Expected Tensor, received {}'.format(type(x)))
         
@@ -29,14 +29,15 @@ class BiGramModel(nn.Module):
         return logits, loss
     
     def generate(self, context: torch.Tensor, output_length: int) -> list:
-        output = context
+        output = context.clone()
         for i in range(output_length):
-            logits, loss = self.forward(context, None)
+            logits, _ = self.forward(output, None)
             probs = F.softmax(logits, dim=-1)
+
             # The char with the highest probability is retained
             # Could also use torch.multinomial() to pick next char
-            next_idx = torch.multinomial(probs, num_samples=1)
-            output = torch.cat((output, next_idx))
+            next_idx = torch.multinomial(probs[[-1]], num_samples=1)
+            output = torch.cat((output, next_idx), dim=1)
         return output
     
     def train(self, data_train: torch.Tensor, 
