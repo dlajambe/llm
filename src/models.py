@@ -13,7 +13,6 @@ class BiGramModel(nn.Module):
             raise ValueError('Expected Tensor, received {}'.format(type(x)))
         
         logits = self.embeddings(x)
-
         # nn.Embedding outputs a B x T x C tensor, where:
         # B = batch size, i.e. number of samples (batch_size)
         # T = time, i.e. the length of each sample (block_size)
@@ -26,12 +25,14 @@ class BiGramModel(nn.Module):
         if y != None:
             y = y.view(B*T)
             loss = F.cross_entropy(logits, y)
+        
         return logits, loss
     
-    def generate(self, context: torch.Tensor, output_length: int) -> list:
+    def generate(
+            self, context: torch.Tensor, output_length: int) -> torch.long:
         output = context.clone()
         for i in range(output_length):
-            logits, _ = self.forward(output, None)
+            logits, _ = self.forward(output)
             probs = F.softmax(logits, dim=-1)
 
             # The char with the highest probability is retained
@@ -43,7 +44,9 @@ class BiGramModel(nn.Module):
     def train(self, data_train: torch.Tensor, 
               batch_size: int, block_size: int) -> None:
         optimizer = torch.optim.Adam(self.parameters(), lr=0.1)
-        for _ in range(5):
+        for _ in range(500):
+            # TODO: Determine why runtime errors occur when number
+            # of training iterations is high
             xb, yb = get_batch(data_train, batch_size, block_size)
             optimizer.zero_grad(set_to_none=True)
             logits, loss = self.forward(xb, yb)
