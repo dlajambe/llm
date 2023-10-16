@@ -15,8 +15,9 @@ print('Device: {}'.format(device))
 block_size = 8
 batch_size = 32
 embedding_dim = 100
-seed = 1337
+seed = 42
 
+torch.manual_seed(seed)
 print('Block size: {}'.format(block_size))
 print('Batch size: {}'.format(batch_size))
 print('Embedding dim: {}'.format(embedding_dim))
