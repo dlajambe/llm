@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from models import BiGramModel, CharModel
+from models import BiGramModel, CharModel, train_model
 from text_preprocessing import CharTokenizer
 from torch.utils.data import DataLoader
 import time
@@ -15,7 +15,7 @@ print('Device: {}'.format(device))
 block_size = 8
 batch_size = 32
 embedding_dim = 100
-seed = 42
+seed = 1337
 
 torch.manual_seed(seed)
 print('Block size: {}'.format(block_size))
@@ -51,7 +51,7 @@ model = model.to(device)
 
 # Step 5 - Train the model
 print('Training model...')
-model.train(data_train, data_val, batch_size, block_size)
+train_model(model, data_train, data_val, batch_size, block_size)
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
 
 

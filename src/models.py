@@ -1,7 +1,48 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from data_helpers import get_batch
+from data_helpers import get_batch, create_matrices
+
+def train_model(model: nn.Module, 
+                data_train: torch.Tensor, 
+                data_val: torch.Tensor,
+                batch_size: int, block_size: int) -> None:
+    model.train()
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+    x_val, y_val = create_matrices(data_val, block_size)
+    x_train, y_train = create_matrices(data_train, block_size)
+    eval_interval = 100
+
+    def evaluate_loss(n_batches: int):
+        # TODO: Check what the model's state is before modifying so
+        # that the state is only modified if necessary
+
+        model.eval()
+        # TODO: Make model evaluation more efficient by calculating
+        # mean training (and possibly validation) loss during 
+        # backpropagation step 
+        with torch.no_grad():
+            _ , loss_train = model.forward(x_train, y_train)
+            _ , loss_val = model.forward(x_val, y_val)
+            print('\t{0} batches\tLoss (train):{1}\tLoss (val): {2}'.
+                    format(n_batches, loss_train.item(), loss_val.item()))
+        model.train()
+
+    evaluate_loss(0)
+    for i in range(500):
+        xb, yb = get_batch(data_train, batch_size, block_size)
+        optimizer.zero_grad(set_to_none=True)
+        logits, loss = model.forward(xb, yb)
+        loss.backward()
+        optimizer.step()
+
+        if (i + 1) % eval_interval == 0:
+            evaluate_loss(i + 1)
+    
+    # TODO: Check model state at beginning of this function so that the 
+    # state is only changed if necessary
+    model.eval()
+            
 
 class BiGramModel(nn.Module):
     def __init__(self, vocab_size):
@@ -41,21 +82,6 @@ class BiGramModel(nn.Module):
             output = torch.cat((output, next_idx), dim=1)
         return output
     
-    # TODO: Add use of validation data
-    def train(self, 
-              data_train: torch.Tensor, 
-              data_val: torch.Tensor,
-              batch_size: int, block_size: int) -> None:
-        optimizer = torch.optim.Adam(self.parameters(), lr=1e-2)
-        for _ in range(500):
-            # TODO: Determine why runtime errors occur when number
-            # of training iterations is high
-            xb, yb = get_batch(data_train, batch_size, block_size)
-            optimizer.zero_grad(set_to_none=True)
-            logits, loss = self.forward(xb, yb)
-            loss.backward()
-            optimizer.step()
-
     def predict(self) -> torch.Tensor:
         pass
 
