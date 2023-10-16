@@ -21,8 +21,12 @@ class NGramDataSet(Dataset):
     def __getitem__(self, idx: int) -> dict:
         return self.X[idx, :], self.y[idx]
     
-def get_batch(data, batch_size, block_size):
+def get_batch(
+        data: torch.long, 
+        batch_size: int, 
+        block_size: int, 
+        device: str) -> torch.long:
     idx = torch.randint(low=0, high=len(data) - 1 - block_size, size=(batch_size,))
-    x = torch.stack([data[i:i+block_size] for i in idx])
-    y = torch.stack([data[i+1:i+block_size+1] for i in idx])
+    x = torch.stack([data[i:i+block_size] for i in idx]).to(device)
+    y = torch.stack([data[i+1:i+block_size+1] for i in idx]).to(device)
     return x, y

@@ -3,6 +3,9 @@ import torch.nn.functional as F
 from models import BiGramModel, CharModel
 from text_preprocessing import CharTokenizer
 from torch.utils.data import DataLoader
+import time
+
+start_time = time.perf_counter()
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 print('Device: {}'.format(device))
@@ -43,14 +46,19 @@ data_val = data[n_train:]
 
 # # Step 4 - Create the model
 model = BiGramModel(vocab_size)
+model = model.to(device)
 
-# # Step 5 - Train the model
-# # TODO: Push everything to GPU to improve training speed
-model.train(data_train, batch_size, block_size)
-context = torch.zeros((1, 1), dtype=torch.long)
-generated = model.generate(context, 100)
+# Step 5 - Train the model
+print('Training model...')
+model.train(data_train, batch_size, block_size, device)
+context = torch.zeros((1, 1), dtype=torch.long).to(device)
 
-print(tokenizer.decode(generated.tolist()[0]))
+
 # # Step 6 - Have some fun with text generation
-# output_encoded = model.generate(X[[100]], 1000)
-# print('Generated text: {}'.format(tokenizer.decode(output_encoded)))
+print('Generating output...')
+generated = model.generate(context, 100)
+print('Generated text:\n{}'.format(tokenizer.decode(generated.tolist()[0])))
+
+end_time = time.perf_counter()
+
+print('Script runtime: {} seconds'.format(end_time - start_time))
