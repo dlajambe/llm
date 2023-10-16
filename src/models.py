@@ -41,7 +41,10 @@ class BiGramModel(nn.Module):
             output = torch.cat((output, next_idx), dim=1)
         return output
     
-    def train(self, data_train: torch.Tensor, 
+    # TODO: Add use of validation data
+    def train(self, 
+              data_train: torch.Tensor, 
+              data_val: torch.Tensor,
               batch_size: int, block_size: int) -> None:
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-2)
         for _ in range(500):

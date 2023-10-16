@@ -51,7 +51,7 @@ model = model.to(device)
 
 # Step 5 - Train the model
 print('Training model...')
-model.train(data_train, batch_size, block_size)
+model.train(data_train, data_val, batch_size, block_size)
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
 
 
