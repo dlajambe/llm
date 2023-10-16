@@ -42,13 +42,12 @@ class BiGramModel(nn.Module):
         return output
     
     def train(self, data_train: torch.Tensor, 
-              batch_size: int, block_size: int,
-              device: str) -> None:
+              batch_size: int, block_size: int) -> None:
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-2)
         for _ in range(500):
             # TODO: Determine why runtime errors occur when number
             # of training iterations is high
-            xb, yb = get_batch(data_train, batch_size, block_size, device)
+            xb, yb = get_batch(data_train, batch_size, block_size)
             optimizer.zero_grad(set_to_none=True)
             logits, loss = self.forward(xb, yb)
             loss.backward()

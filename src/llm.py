@@ -31,7 +31,7 @@ vocab_size = len(char_set)
 tokenizer = CharTokenizer(char_set)
 
 # Step 3 - Generate matrices to store X and y data
-data = torch.tensor(tokenizer.encode(text), dtype=torch.long)
+data = torch.tensor(tokenizer.encode(text), dtype=torch.long).to(device)
 n_samples = len(data) - block_size
 print('Text length: {} characters'.format(n_samples))
 
@@ -50,7 +50,7 @@ model = model.to(device)
 
 # Step 5 - Train the model
 print('Training model...')
-model.train(data_train, batch_size, block_size, device)
+model.train(data_train, batch_size, block_size)
 context = torch.zeros((1, 1), dtype=torch.long).to(device)
 
 
