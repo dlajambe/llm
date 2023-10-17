@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from models import BiGramModel, CharModel, train_model
+from models import BiGramModel, train_model
 from text_preprocessing import CharTokenizer
 from torch.utils.data import DataLoader
 import time
@@ -46,7 +46,7 @@ data_train = data[:n_train]
 data_val = data[n_train:]
 
 # # Step 4 - Create the model
-model = BiGramModel(vocab_size)
+model = BiGramModel(block_size, embedding_dim, vocab_size)
 model = model.to(device)
 
 # Step 5 - Train the model

@@ -45,20 +45,35 @@ def train_model(model: nn.Module,
             
 
 class BiGramModel(nn.Module):
-    def __init__(self, vocab_size):
+    def __init__(self, block_size: int, embedding_dim: int, vocab_size: int):
         super(BiGramModel, self).__init__()
-        self.embeddings = nn.Embedding(vocab_size, vocab_size)
+        self.token_embeddings = nn.Embedding(vocab_size, embedding_dim)
+        self.fc = nn.Linear(embedding_dim, vocab_size)
 
-    def forward(self, x: torch.Tensor, y: torch.Tensor=None) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, y: torch.Tensor=None, 
+                device='cpu') -> torch.Tensor:
         if type(x) != torch.Tensor:
             raise ValueError('Expected Tensor, received {}'.format(type(x)))
         
-        logits = self.embeddings(x)
-        # nn.Embedding outputs a B x T x C tensor, where:
+        # x enters as a B x T tensor, where:
         # B = batch size, i.e. number of samples (batch_size)
         # T = time, i.e. the length of each sample (block_size)
-        # C = channels, i.e. the number of embeddings
-        B, T, C = logits.shape
+        B, T = x.shape
+
+        x = self.token_embeddings(x)
+
+        # The embedding layers add a dimension (B x T x E), where:
+        # B = batch size, i.e. number of samples (batch_size)
+        # T = time, i.e. the length of each sample (block_size)
+        # E = embedding dimension
+        
+        logits = self.fc(x)
+        # logits is a B x T x C tensor, where:
+        # B = batch size, i.e. number of samples (batch_size)
+        # T = time, i.e. the length of each sample (block_size)
+        # C = channels, i.e. the vocab size
+
+        _, _, C = logits.shape
 
         # Pytorch's cross entropy loss function requires a N x C tensor
         logits = logits.view(B*T, C)
@@ -82,28 +97,5 @@ class BiGramModel(nn.Module):
             output = torch.cat((output, next_idx), dim=1)
         return output
     
-    def predict(self) -> torch.Tensor:
-        pass
-
-class CharModel(nn.Module):
-    def __init__(self, vocab_size, embedding_dim):
-        super(CharModel, self).__init__()
-        self.embeddings = nn.Embedding(vocab_size, embedding_dim)
-        self.hidden_1 = nn.Linear(embedding_dim, 500)
-        self.hidden_2 = nn.Linear(500, 500)
-        self.output = nn.Linear(500, vocab_size)
-
-    def forward(self, X: torch.Tensor) -> None:
-        pass
-    
-    def generate(self, idx, output_length):
-        pass
-
-    def calc_loss(self, logits: torch.Tensor, targets: torch.Tensor) -> float:
-        pass
-
-    def train(self, X: torch.Tensor, y: torch.Tensor) -> None:
-        pass
-
     def predict(self) -> torch.Tensor:
         pass
