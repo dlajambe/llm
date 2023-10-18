@@ -84,15 +84,23 @@ class BiGramModel(nn.Module):
         
         return logits, loss
     
-    def generate(
-            self, context: torch.Tensor, output_length: int) -> torch.long:
-        output = context.clone()
+    def generate(self, 
+                 context: torch.Tensor, 
+                 output_length: int) -> torch.Tensor:
+        if len(context.shape) != 2:
+            raise ValueError('Invalid context provided, expected a 2D Tensor')
+        
+        output = context.clone() # (B, T)
         for i in range(output_length):
-            logits, _ = self.forward(output)
-            probs = F.softmax(logits, dim=-1)
+
+            # TODO: Make more efficient by only passing last N-grams to
+            # the forward function instead of the entire context
+            logits, _ = self.forward(output) # (B*T, C)
+            probs = F.softmax(logits[[-1], :], dim=-1) # (1, C)
 
             # The char with the highest probability is retained
             # Could also use torch.multinomial() to pick next char
+            # (1, 1)
             next_idx = torch.multinomial(probs[[-1]], num_samples=1)
             output = torch.cat((output, next_idx), dim=1)
         return output

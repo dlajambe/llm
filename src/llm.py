@@ -57,7 +57,7 @@ context = torch.zeros((1, 1), dtype=torch.long, device=device)
 
 # # Step 6 - Have some fun with text generation
 print('Generating output...')
-generated = model.generate(context, 100)
+generated = model.generate(context, 50)
 print('Generated text: {}\n'.format(tokenizer.decode(generated.tolist()[0])))
 
 end_time = time.perf_counter()
