@@ -45,10 +45,15 @@ def train_model(model: nn.Module,
             
 
 class BiGramModel(nn.Module):
-    def __init__(self, block_size: int, embedding_dim: int, vocab_size: int):
+    def __init__(self, 
+                 block_size: int, 
+                 embedding_dim: int, 
+                 vocab_size: int):
         super(BiGramModel, self).__init__()
         self.token_embeddings = nn.Embedding(vocab_size, embedding_dim)
+        self.positional_embeddings = nn.Embedding(block_size, embedding_dim)
         self.fc = nn.Linear(embedding_dim, vocab_size)
+        self.block_size = block_size
 
     def forward(self, x: torch.Tensor, y: torch.Tensor=None, 
                 device='cpu') -> torch.Tensor:
@@ -60,18 +65,24 @@ class BiGramModel(nn.Module):
         # T = time, i.e. the length of each sample (block_size)
         B, T = x.shape
 
-        x = self.token_embeddings(x)
-
-        # The embedding layers add a dimension (B x T x E), where:
-        # B = batch size, i.e. number of samples (batch_size)
-        # T = time, i.e. the length of each sample (block_size)
-        # E = embedding dimension
+        # Character information is captured through the token embedding,
+        # whereas positional information is captured through the
+        # poisition embedding
         
-        logits = self.fc(x)
-        # logits is a B x T x C tensor, where:
-        # B = batch size, i.e. number of samples (batch_size)
-        # T = time, i.e. the length of each sample (block_size)
-        # C = channels, i.e. the vocab size
+        tok_vect = self.token_embeddings(x) # (B, T, embedding_dim)
+
+        # TODO: pass the device to this class somehow or add arange
+        # as a buffer with the self.register_buffer method 
+        pos_vect = self.positional_embeddings(
+            torch.arange(T, device='cuda')) # (T, embedding_dim)
+
+        # After adding the token and position vectors together, x 
+        # contains both types of information, making it more useful
+        # for predicting the next token
+        x = tok_vect + pos_vect # (B, T, embedding_dim)
+        
+        logits = self.fc(x) # (B, T, vocab_size)
+        print(logits.shape)
 
         _, _, C = logits.shape
 
@@ -93,9 +104,10 @@ class BiGramModel(nn.Module):
         output = context.clone() # (B, T)
         for i in range(output_length):
 
-            # TODO: Make more efficient by only passing last N-grams to
-            # the forward function instead of the entire context
-            logits, _ = self.forward(output) # (B*T, C)
+            # The positional embeddings are only defined up to
+            # block_size, so only the last block_size characters are
+            # retained when calling self.forward()
+            logits, _ = self.forward(output[:, -self.block_size:]) # (B*T, C)
             probs = F.softmax(logits[[-1], :], dim=-1) # (1, C)
 
             # The char with the highest probability is retained
