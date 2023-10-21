@@ -43,6 +43,27 @@ def train_model(model: nn.Module,
     # state is only changed if necessary
     model.eval()
             
+class Head(nn.Module):
+    def __init__(self, embedding_dim: int, head_size: int):
+        self.key = nn.Linear(embedding_dim, head_size, bias=False)
+        self.query = nn.Linear(embedding_dim, head_size, bias=False)
+
+        self.embedding_dim = embedding_dim
+        self.head_size = head_size
+
+    def forward(self, x: torch.Tensor):
+        # x is (B, block_size, emedding_dim)
+        k = self.key(x)   # (B, block_size, head_size)
+        q = self.query(x) # (B, block_size, head_size)
+
+        weights = q @ k # (B, block_size, block_size)
+
+        # TODO: Add code to add tril to ensure that the future does not
+        # interact with the past
+
+        # TODO: Add code to normalize weights to prevent "sharpoening"
+        # of probabilities during softmax step
+
 
 class BiGramModel(nn.Module):
     def __init__(self, 
@@ -82,7 +103,6 @@ class BiGramModel(nn.Module):
         x = tok_vect + pos_vect # (B, T, embedding_dim)
         
         logits = self.fc(x) # (B, T, vocab_size)
-        print(logits.shape)
 
         _, _, C = logits.shape
 
