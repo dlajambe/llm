@@ -8,10 +8,13 @@ def train_model(model: nn.Module,
                 data_val: torch.Tensor,
                 batch_size: int, block_size: int) -> None:
     model.train()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+
+    print('\tCreating data matrices...')
     x_val, y_val = create_matrices(data_val, block_size)
     x_train, y_train = create_matrices(data_train, block_size)
-    eval_interval = 100
+    print('\tMatrices created')
+    eval_interval = 250
 
     def evaluate_loss(n_batches: int):
         # TODO: Check what the model's state is before modifying so
@@ -20,7 +23,7 @@ def train_model(model: nn.Module,
         model.eval()
         # TODO: Make model evaluation more efficient by calculating
         # mean training (and possibly validation) loss during 
-        # backpropagation step 
+        # backpropagation step
         with torch.no_grad():
             _ , loss_train = model.forward(x_train, y_train)
             _ , loss_val = model.forward(x_val, y_val)
@@ -28,8 +31,26 @@ def train_model(model: nn.Module,
                     format(n_batches, loss_train.item(), loss_val.item()))
         model.train()
 
-    evaluate_loss(0)
-    for i in range(500):
+    def estimate_loss(n_batches: int):
+        # TODO: Check what the model's state is before modifying so
+        # that the state is only modified if necessary
+
+        model.eval()
+        # TODO: Make model evaluation more efficient by calculating
+        # mean training (and possibly validation) loss during 
+        # backpropagation step 
+        x_train, y_train = get_batch(data_train, batch_size, block_size)
+        x_val, y_val = get_batch(data_val, batch_size, block_size)
+        with torch.no_grad():
+            _ , loss_train = model.forward(x_train, y_train)
+            _ , loss_val = model.forward(x_val, y_val)
+            print('\t{0} batches\tLoss (train):{1}\tLoss (val): {2}'.
+                    format(n_batches, loss_train.item(), loss_val.item()))
+        model.train()
+
+    print('\tBeginning training loop...')
+    estimate_loss(0)
+    for i in range(5000):
         xb, yb = get_batch(data_train, batch_size, block_size)
         optimizer.zero_grad(set_to_none=True)
         logits, loss = model.forward(xb, yb)
@@ -37,47 +58,73 @@ def train_model(model: nn.Module,
         optimizer.step()
 
         if (i + 1) % eval_interval == 0:
-            evaluate_loss(i + 1)
+            estimate_loss(i + 1)
     
     # TODO: Check model state at beginning of this function so that the 
     # state is only changed if necessary
     model.eval()
-            
+
 class Head(nn.Module):
-    def __init__(self, embedding_dim: int, head_size: int):
+    def __init__(self, 
+                 block_size: int, 
+                 embedding_dim: int, 
+                 head_size: int):
+        super(Head, self).__init__()
         self.key = nn.Linear(embedding_dim, head_size, bias=False)
         self.query = nn.Linear(embedding_dim, head_size, bias=False)
+        self.value = nn.Linear(embedding_dim, head_size, bias=False)
+
+        self.register_buffer(
+            'mask', torch.tril(torch.ones(block_size, block_size)))
 
         self.embedding_dim = embedding_dim
         self.head_size = head_size
 
     def forward(self, x: torch.Tensor):
-        # x is (B, block_size, emedding_dim)
-        k = self.key(x)   # (B, block_size, head_size)
-        q = self.query(x) # (B, block_size, head_size)
+        # x dimensions: (batch_size, block_size, emedding_dim)
+        B, T, E = x.shape
+        k = self.key(x)   # (B, T, head_size)
+        q = self.query(x) # (B, T, head_size)
+        v = self.value(x) # (B, T, head_size)
 
-        weights = q @ k # (B, block_size, block_size)
+        # (B, T, head_size) x (B, head_size, T) = (B, T, T)
+        weights = q @ k.transpose(-2, -1)
 
-        # TODO: Add code to add tril to ensure that the future does not
-        # interact with the past
+        # Normalizing the weights prevents values from ballooning as the
+        # block size increases, which would cause the probabilities to
+        # "sharpen" during the softmax step
+        weights = weights * (1 / T ** (-0.5))
 
-        # TODO: Add code to normalize weights to prevent "sharpoening"
-        # of probabilities during softmax step
+        # Ensures that information from the future can not communicate
+        # to the past
+        weights = weights.masked_fill(self.mask[:T, :T] == 0, float('-inf'))
+
+        # Conversion to probabilities with softmax ensures that all 
+        # weight vectors sum to 1.0, standardizing the scaling
+        # regardless of the input
+        weights = F.softmax(weights, -1)
+
+        # (B, T, T) x (B, T, head_size) x  = (B, T, head_size)
+        output = weights @ v
+        return output
 
 
-class BiGramModel(nn.Module):
+
+class LLM(nn.Module):
     def __init__(self, 
                  block_size: int, 
                  embedding_dim: int, 
-                 vocab_size: int):
-        super(BiGramModel, self).__init__()
+                 vocab_size: int,
+                 head_size: int):
+        super(LLM, self).__init__()
         self.token_embeddings = nn.Embedding(vocab_size, embedding_dim)
         self.positional_embeddings = nn.Embedding(block_size, embedding_dim)
-        self.fc = nn.Linear(embedding_dim, vocab_size)
+        self.head = Head(block_size, embedding_dim, head_size)
+        self.fc = nn.Linear(head_size, vocab_size)
+        self.register_buffer('range', torch.arange(block_size))
         self.block_size = block_size
 
-    def forward(self, x: torch.Tensor, y: torch.Tensor=None, 
-                device='cpu') -> torch.Tensor:
+    def forward(self, x: torch.Tensor, y: torch.Tensor=None) -> torch.Tensor:
         if type(x) != torch.Tensor:
             raise ValueError('Expected Tensor, received {}'.format(type(x)))
         
@@ -91,18 +138,18 @@ class BiGramModel(nn.Module):
         # poisition embedding
         
         tok_vect = self.token_embeddings(x) # (B, T, embedding_dim)
-
-        # TODO: pass the device to this class somehow or add arange
-        # as a buffer with the self.register_buffer method 
-        pos_vect = self.positional_embeddings(
-            torch.arange(T, device='cuda')) # (T, embedding_dim)
+        
+        # # (T, embedding_dim) 
+        pos_vect = self.positional_embeddings(self.range[:T])
 
         # After adding the token and position vectors together, x 
         # contains both types of information, making it more useful
         # for predicting the next token
         x = tok_vect + pos_vect # (B, T, embedding_dim)
+
+        att = self.head(x) # (B, T, head_size)
         
-        logits = self.fc(x) # (B, T, vocab_size)
+        logits = self.fc(att) # (B, T, vocab_size)
 
         _, _, C = logits.shape
 

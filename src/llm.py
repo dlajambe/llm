@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from models import BiGramModel, train_model
+from models import LLM, train_model
 from text_preprocessing import CharTokenizer
 from torch.utils.data import DataLoader
 import time
@@ -15,15 +15,17 @@ print('Device: {}'.format(device))
 block_size = 8
 batch_size = 32
 embedding_dim = 100
+head_size = embedding_dim
 seed = 1337
 
 torch.manual_seed(seed)
 print('Block size: {}'.format(block_size))
 print('Batch size: {}'.format(batch_size))
 print('Embedding dim: {}'.format(embedding_dim))
+print('Head size: {}'.format(head_size))
 
 # Step 1 - Import the data
-with open('data/wizard_of_oz.txt', 'r', encoding='utf-8') as f:
+with open('data/shakespeare.txt', 'r', encoding='utf-8') as f:
     text = f.read()
 char_set = sorted(set(text))
 vocab_size = len(char_set)
@@ -46,7 +48,7 @@ data_train = data[:n_train]
 data_val = data[n_train:]
 
 # # Step 4 - Create the model
-model = BiGramModel(block_size, embedding_dim, vocab_size)
+model = LLM(block_size, embedding_dim, vocab_size, head_size)
 model = model.to(device)
 
 # Step 5 - Train the model
