@@ -12,10 +12,11 @@ print('Device: {}'.format(device))
 
 # Step 0 - Define hyperparameters.
 # These parameters can be modified / tuned to improve model performance
-block_size = 8
 batch_size = 32
-embedding_dim = 100
-head_size = embedding_dim
+block_size = 8
+embedding_dim = 32
+head_size = 16
+lr = 1e-3
 seed = 1337
 
 torch.manual_seed(seed)
@@ -41,7 +42,7 @@ print('Text length: {} characters'.format(n_samples))
 # Step 3 - Split data into training and validation partitions
 # training: Used to fit the model
 # validation: Used to determine when to terminate training
-train_frac = 0.8
+train_frac = 0.9
 n_train = int(n_samples * train_frac)
 
 data_train = data[:n_train]
@@ -53,7 +54,7 @@ model = model.to(device)
 
 # Step 5 - Train the model
 print('Training model...')
-train_model(model, data_train, data_val, batch_size, block_size)
+train_model(model, data_train, data_val, batch_size, block_size, lr)
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
 
 

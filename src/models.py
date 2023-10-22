@@ -6,50 +6,35 @@ from data_helpers import get_batch, create_matrices
 def train_model(model: nn.Module, 
                 data_train: torch.Tensor, 
                 data_val: torch.Tensor,
-                batch_size: int, block_size: int) -> None:
+                batch_size: int, 
+                block_size: int,
+                lr: float) -> None:
     model.train()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
-    print('\tCreating data matrices...')
-    x_val, y_val = create_matrices(data_val, block_size)
-    x_train, y_train = create_matrices(data_train, block_size)
-    print('\tMatrices created')
     eval_interval = 250
+    eval_batches = 200
 
-    def evaluate_loss(n_batches: int):
-        # TODO: Check what the model's state is before modifying so
-        # that the state is only modified if necessary
-
+    def estimate_loss(eval_batches: int, n_batches: int):
         model.eval()
-        # TODO: Make model evaluation more efficient by calculating
-        # mean training (and possibly validation) loss during 
-        # backpropagation step
+
+        # Gradients are not required during evaluation, so they are 
+        # turned off to improve calculation speed
         with torch.no_grad():
-            _ , loss_train = model.forward(x_train, y_train)
-            _ , loss_val = model.forward(x_val, y_val)
-            print('\t{0} batches\tLoss (train):{1}\tLoss (val): {2}'.
-                    format(n_batches, loss_train.item(), loss_val.item()))
+            losses_train = torch.zeros(eval_batches)
+            losses_val = torch.zeros(eval_batches)
+            for i in range(eval_batches):
+                x_train, y_train = get_batch(data_train, batch_size, block_size)
+                x_val, y_val = get_batch(data_val, batch_size, block_size)
+                _ , loss_train = model.forward(x_train, y_train)
+                _ , loss_val = model.forward(x_val, y_val)
+                losses_train[i] = loss_train.item()
+                losses_val[i] = loss_val.item()
+        print('\t{0} batches\tLoss (train):{1}\tLoss (val): {2}'.
+              format(n_batches, losses_train.mean(), losses_val.mean()))
         model.train()
 
-    def estimate_loss(n_batches: int):
-        # TODO: Check what the model's state is before modifying so
-        # that the state is only modified if necessary
-
-        model.eval()
-        # TODO: Make model evaluation more efficient by calculating
-        # mean training (and possibly validation) loss during 
-        # backpropagation step 
-        x_train, y_train = get_batch(data_train, batch_size, block_size)
-        x_val, y_val = get_batch(data_val, batch_size, block_size)
-        with torch.no_grad():
-            _ , loss_train = model.forward(x_train, y_train)
-            _ , loss_val = model.forward(x_val, y_val)
-            print('\t{0} batches\tLoss (train):{1}\tLoss (val): {2}'.
-                    format(n_batches, loss_train.item(), loss_val.item()))
-        model.train()
-
-    print('\tBeginning training loop...')
-    estimate_loss(0)
+    estimate_loss(eval_batches, 0)
     for i in range(5000):
         xb, yb = get_batch(data_train, batch_size, block_size)
         optimizer.zero_grad(set_to_none=True)
@@ -58,7 +43,7 @@ def train_model(model: nn.Module,
         optimizer.step()
 
         if (i + 1) % eval_interval == 0:
-            estimate_loss(i + 1)
+            estimate_loss(eval_batches, i + 1)
     
     # TODO: Check model state at beginning of this function so that the 
     # state is only changed if necessary
@@ -91,9 +76,9 @@ class Head(nn.Module):
         weights = q @ k.transpose(-2, -1)
 
         # Normalizing the weights prevents values from ballooning as the
-        # block size increases, which would cause the probabilities to
+        # head size increases, which would cause the probabilities to
         # "sharpen" during the softmax step
-        weights = weights * (1 / T ** (-0.5))
+        weights = weights * (1 / k.shape[-1] ** (-0.5))
 
         # Ensures that information from the future can not communicate
         # to the past
@@ -138,7 +123,7 @@ class LLM(nn.Module):
         # poisition embedding
         
         tok_vect = self.token_embeddings(x) # (B, T, embedding_dim)
-        
+
         # # (T, embedding_dim) 
         pos_vect = self.positional_embeddings(self.range[:T])
 
