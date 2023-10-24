@@ -7,23 +7,24 @@ import time
 
 start_time = time.perf_counter()
 
-device = 'cuda' if torch.cuda.is_available() else 'cpu'
-print('Device: {}'.format(device))
-
 # Step 0 - Define hyperparameters.
 # These parameters can be modified / tuned to improve model performance
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
 block_size = 8
 embedding_dim = 32
 head_size = 16
 
 batch_size = 64
 lr = 1e-3
-max_training_iters = 10000
+max_training_iters = 50000
 seed = 1337
 eval_interval = 250
 eval_batches = 200
 
 torch.manual_seed(seed)
+
+print('Device: {}'.format(device))
 print('Model Hyperparameters:')
 print('\tBlock size: {}'.format(block_size))
 print('\tEmbedding dim: {}'.format(embedding_dim))
@@ -69,6 +70,10 @@ train_model(
     model, data_train, data_val, batch_size, block_size, 
     lr, max_training_iters, eval_interval, eval_batches)
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
+
+# Step 6 - Save the model parameters so they can be loaded in the future
+# without retraining the model
+torch.save(model.state_dict(), 'output/llm.pt')
 
 # Step 6 - Have some fun with text generation
 print('Generating output...')

@@ -25,7 +25,10 @@ def get_batch(
         data: torch.long, 
         batch_size: int, 
         block_size: int) -> torch.long:
-    idx = torch.randint(low=0, high=len(data) - 1 - block_size, size=(batch_size,))
+    idx = torch.randint(
+        low=0, 
+        high=len(data) - 1 - block_size, 
+        size=(batch_size,))
     x = torch.stack([data[i:i+block_size] for i in idx])
     y = torch.stack([data[i+1:i+block_size+1] for i in idx])
     return x, y
@@ -34,6 +37,8 @@ def create_matrices(
         data: torch.long,
         block_size: int
 ) -> torch.long:
-    x = torch.stack([data[i:i+block_size] for i in range(0, len(data) - block_size - 1)])
-    y = torch.stack([data[i:i+block_size] for i in range(1, len(data) - block_size)])
+    x = torch.stack(
+        [data[i:i+block_size] for i in range(0, len(data) - block_size - 1)])
+    y = torch.stack(
+        [data[i:i+block_size] for i in range(1, len(data) - block_size)])
     return x, y

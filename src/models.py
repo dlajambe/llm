@@ -24,7 +24,8 @@ def train_model(model: nn.Module,
             losses_train = torch.zeros(eval_batches)
             losses_val = torch.zeros(eval_batches)
             for i in range(eval_batches):
-                x_train, y_train = get_batch(data_train, batch_size, block_size)
+                x_train, y_train = get_batch(
+                    data_train, batch_size, block_size)
                 x_val, y_val = get_batch(data_val, batch_size, block_size)
                 _ , loss_train = model.forward(x_train, y_train)
                 _ , loss_val = model.forward(x_val, y_val)
@@ -131,7 +132,7 @@ class LLM(nn.Module):
 
         _, _, C = logits.shape
 
-        # Pytorch's cross entropy loss function requires a N x C tensor
+        # Pytorch's cross entropy loss function requires an N x C tensor
         logits = logits.view(B*T, C)
         loss = None
         if y != None:
