@@ -12,18 +12,29 @@ print('Device: {}'.format(device))
 
 # Step 0 - Define hyperparameters.
 # These parameters can be modified / tuned to improve model performance
-batch_size = 32
 block_size = 8
 embedding_dim = 32
 head_size = 16
+
+batch_size = 64
 lr = 1e-3
+max_training_iters = 10000
 seed = 1337
+eval_interval = 250
+eval_batches = 200
 
 torch.manual_seed(seed)
-print('Block size: {}'.format(block_size))
-print('Batch size: {}'.format(batch_size))
-print('Embedding dim: {}'.format(embedding_dim))
-print('Head size: {}'.format(head_size))
+print('Model Hyperparameters:')
+print('\tBlock size: {}'.format(block_size))
+print('\tEmbedding dim: {}'.format(embedding_dim))
+print('\tHead size: {}\n'.format(head_size))
+
+print('Training Hyperparameters:')
+print('\tBatch size: {}'.format(batch_size))
+print('\tLearning rate: {}'.format(lr))
+print('\tMax training iterations: {}'.format(max_training_iters))
+print('\tEval interval: {}'.format(eval_interval))
+print('\tEval batches: {}\n'.format(eval_batches))
 
 # Step 1 - Import the data
 with open('data/shakespeare.txt', 'r', encoding='utf-8') as f:
@@ -54,13 +65,14 @@ model = model.to(device)
 
 # Step 5 - Train the model
 print('Training model...')
-train_model(model, data_train, data_val, batch_size, block_size, lr)
+train_model(
+    model, data_train, data_val, batch_size, block_size, 
+    lr, max_training_iters, eval_interval, eval_batches)
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
 
-
-# # Step 6 - Have some fun with text generation
+# Step 6 - Have some fun with text generation
 print('Generating output...')
-generated = model.generate(context, 50)
+generated = model.generate(context, 500)
 print('Generated text: {}\n'.format(tokenizer.decode(generated.tolist()[0])))
 
 end_time = time.perf_counter()

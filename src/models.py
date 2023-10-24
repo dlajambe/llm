@@ -1,19 +1,19 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from data_helpers import get_batch, create_matrices
+from data_helpers import get_batch
 
 def train_model(model: nn.Module, 
                 data_train: torch.Tensor, 
                 data_val: torch.Tensor,
                 batch_size: int, 
                 block_size: int,
-                lr: float) -> None:
+                lr: float,
+                max_iters: int,
+                eval_interval: int,
+                eval_batches: int) -> None:
     model.train()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-
-    eval_interval = 250
-    eval_batches = 200
 
     def estimate_loss(eval_batches: int, n_batches: int):
         model.eval()
@@ -35,7 +35,7 @@ def train_model(model: nn.Module,
         model.train()
 
     estimate_loss(eval_batches, 0)
-    for i in range(5000):
+    for i in range(max_iters):
         xb, yb = get_batch(data_train, batch_size, block_size)
         optimizer.zero_grad(set_to_none=True)
         logits, loss = model.forward(xb, yb)
@@ -44,9 +44,7 @@ def train_model(model: nn.Module,
 
         if (i + 1) % eval_interval == 0:
             estimate_loss(eval_batches, i + 1)
-    
-    # TODO: Check model state at beginning of this function so that the 
-    # state is only changed if necessary
+
     model.eval()
 
 class Head(nn.Module):
@@ -61,9 +59,6 @@ class Head(nn.Module):
 
         self.register_buffer(
             'mask', torch.tril(torch.ones(block_size, block_size)))
-
-        self.embedding_dim = embedding_dim
-        self.head_size = head_size
 
     def forward(self, x: torch.Tensor):
         # x dimensions: (batch_size, block_size, emedding_dim)
@@ -85,15 +80,13 @@ class Head(nn.Module):
         weights = weights.masked_fill(self.mask[:T, :T] == 0, float('-inf'))
 
         # Conversion to probabilities with softmax ensures that all 
-        # weight vectors sum to 1.0, standardizing the scaling
-        # regardless of the input
+        # weight vectors sum to 1.0, so that the magnitude of the
+        # weights are standardized
         weights = F.softmax(weights, -1)
 
         # (B, T, T) x (B, T, head_size) x  = (B, T, head_size)
         output = weights @ v
         return output
-
-
 
 class LLM(nn.Module):
     def __init__(self, 
