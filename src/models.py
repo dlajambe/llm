@@ -52,7 +52,7 @@ class Head(nn.Module):
     def __init__(self, 
                  block_size: int, 
                  embedding_dim: int, 
-                 head_size: int):
+                 head_size: int) -> None:
         super(Head, self).__init__()
         self.key = nn.Linear(embedding_dim, head_size, bias=False)
         self.query = nn.Linear(embedding_dim, head_size, bias=False)
@@ -61,7 +61,7 @@ class Head(nn.Module):
         self.register_buffer(
             'mask', torch.tril(torch.ones(block_size, block_size)))
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x dimensions: (batch_size, block_size, emedding_dim)
         B, T, E = x.shape
         k = self.key(x)   # (B, T, head_size)
@@ -77,7 +77,7 @@ class Head(nn.Module):
         weights = weights * (1 / k.shape[-1] ** (-0.5))
 
         # Ensures that information from the future can not communicate
-        # to the past
+        # to the past within each individual block of data
         weights = weights.masked_fill(self.mask[:T, :T] == 0, float('-inf'))
 
         # Conversion to probabilities with softmax ensures that all 
@@ -89,17 +89,32 @@ class Head(nn.Module):
         output = weights @ v
         return output
 
+class MultiHead(nn.Module):
+    def __init__(self, 
+                 block_size: int, 
+                 embedding_dim: int, 
+                 head_size: int,
+                 n_heads: int) -> None:
+        super(MultiHead, self).__init__()
+        self.heads = nn.ModuleList(
+            [Head(block_size, embedding_dim, head_size) 
+             for _ in range(n_heads)])
+        
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return torch.cat([head.forward(x) for head in self.heads], dim=-1)
+
 class LLM(nn.Module):
     def __init__(self, 
                  block_size: int, 
                  embedding_dim: int, 
                  vocab_size: int,
-                 head_size: int):
+                 head_size: int,
+                 n_heads: int):
         super(LLM, self).__init__()
         self.token_embeddings = nn.Embedding(vocab_size, embedding_dim)
         self.positional_embeddings = nn.Embedding(block_size, embedding_dim)
-        self.head = Head(block_size, embedding_dim, head_size)
-        self.fc = nn.Linear(head_size, vocab_size)
+        self.heads = MultiHead(block_size, embedding_dim, head_size, n_heads)
+        self.fc = nn.Linear(head_size * n_heads, vocab_size)
         self.register_buffer('range', torch.arange(block_size))
         self.block_size = block_size
 
@@ -126,7 +141,7 @@ class LLM(nn.Module):
         # for predicting the next token
         x = tok_vect + pos_vect # (B, T, embedding_dim)
 
-        att = self.head(x) # (B, T, head_size)
+        att = self.heads(x) # (B, T, head_size)
         
         logits = self.fc(att) # (B, T, vocab_size)
 

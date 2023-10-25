@@ -13,11 +13,15 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 block_size = 8
 embedding_dim = 32
-head_size = 16
+n_heads = 4
+if embedding_dim % n_heads != 0:
+    raise ValueError(
+        'Embedding dimension must be divisible by number of heads')
+head_size = int(embedding_dim / n_heads)
 
 batch_size = 64
 lr = 1e-3
-max_training_iters = 50000
+max_training_iters = 10000
 seed = 1337
 eval_interval = 250
 eval_batches = 200
@@ -28,6 +32,7 @@ print('Device: {}'.format(device))
 print('Model Hyperparameters:')
 print('\tBlock size: {}'.format(block_size))
 print('\tEmbedding dim: {}'.format(embedding_dim))
+print('\tNum heads size: {}'.format(n_heads))
 print('\tHead size: {}\n'.format(head_size))
 
 print('Training Hyperparameters:')
@@ -61,7 +66,7 @@ data_train = data[:n_train]
 data_val = data[n_train:]
 
 # # Step 4 - Create the model
-model = LLM(block_size, embedding_dim, vocab_size, head_size)
+model = LLM(block_size, embedding_dim, vocab_size, head_size, n_heads)
 model = model.to(device)
 
 # Step 5 - Train the model
