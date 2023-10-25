@@ -53,12 +53,12 @@ def train_model(model: nn.Module,
 class Head(nn.Module):
     def __init__(self, 
                  block_size: int, 
-                 embedding_dim: int, 
+                 embed_dim: int, 
                  head_size: int) -> None:
         super(Head, self).__init__()
-        self.key = nn.Linear(embedding_dim, head_size, bias=False)
-        self.query = nn.Linear(embedding_dim, head_size, bias=False)
-        self.value = nn.Linear(embedding_dim, head_size, bias=False)
+        self.key = nn.Linear(embed_dim, head_size, bias=False)
+        self.query = nn.Linear(embed_dim, head_size, bias=False)
+        self.value = nn.Linear(embed_dim, head_size, bias=False)
 
         self.register_buffer(
             'mask', torch.tril(torch.ones(block_size, block_size)))
@@ -94,12 +94,12 @@ class Head(nn.Module):
 class MultiHead(nn.Module):
     def __init__(self, 
                  block_size: int, 
-                 embedding_dim: int, 
+                 embed_dim: int, 
                  head_size: int,
                  n_heads: int) -> None:
         super(MultiHead, self).__init__()
         self.heads = nn.ModuleList(
-            [Head(block_size, embedding_dim, head_size) 
+            [Head(block_size, embed_dim, head_size) 
              for _ in range(n_heads)])
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -115,18 +115,32 @@ class FeedForward(nn.Module):
         x = self.fc(x)
         x = F.relu(x)
         return x
-    
+
+class Block(nn.Module):
+    def __init__(self, 
+                 block_size: int, 
+                 embed_dim: int, 
+                 head_size: int,
+                 n_heads: int):
+        self.multi_head = MultiHead(
+            block_size, embed_dim, head_size, n_heads)
+        self.ff = FeedForward()
+
+    def forward(self, x: torch.Tensor):
+        pass
+        
+
 class LLM(nn.Module):
     def __init__(self, 
                  block_size: int, 
-                 embedding_dim: int, 
+                 embed_dim: int, 
                  vocab_size: int,
                  head_size: int,
                  n_heads: int):
         super(LLM, self).__init__()
-        self.token_embeddings = nn.Embedding(vocab_size, embedding_dim)
-        self.positional_embeddings = nn.Embedding(block_size, embedding_dim)
-        self.heads = MultiHead(block_size, embedding_dim, head_size, n_heads)
+        self.token_embeddings = nn.Embedding(vocab_size, embed_dim)
+        self.positional_embeddings = nn.Embedding(block_size, embed_dim)
+        self.heads = MultiHead(block_size, embed_dim, head_size, n_heads)
         self.ff = FeedForward(head_size * n_heads, head_size * n_heads)
         self.fc = nn.Linear(head_size * n_heads, vocab_size)
         self.register_buffer('range', torch.arange(block_size))
@@ -145,15 +159,15 @@ class LLM(nn.Module):
         # whereas positional information is captured through the
         # poisition embedding
         
-        tok_vect = self.token_embeddings(x) # (B, T, embedding_dim)
+        tok_vect = self.token_embeddings(x) # (B, T, embed_dim)
 
-        # # (T, embedding_dim) 
+        # # (T, embed_dim) 
         pos_vect = self.positional_embeddings(self.range[:T])
 
         # After adding the token and position vectors together, x 
         # contains both types of information, making it more useful
         # for predicting the next token
-        x = tok_vect + pos_vect # (B, T, embedding_dim)
+        x = tok_vect + pos_vect # (B, T, embed_dim)
 
         x = self.heads(x) # (B, T, head_size * n_heads)
         
