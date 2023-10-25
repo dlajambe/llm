@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from data_helpers import get_batch
+from modules.data_helpers import get_batch
 
 def train_model(model: nn.Module, 
                 data_train: torch.Tensor, 
@@ -47,6 +47,8 @@ def train_model(model: nn.Module,
             estimate_loss(eval_batches, i + 1)
 
     model.eval()
+# TODO: See if there is a way to remove all of these parameters 
+# from the constructor functions of all classes
 
 class Head(nn.Module):
     def __init__(self, 
@@ -102,7 +104,18 @@ class MultiHead(nn.Module):
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return torch.cat([head.forward(x) for head in self.heads], dim=-1)
+    
+class FeedForward(nn.Module):
+    def __init__(self, 
+                 in_features: int, out_features: int) -> None:
+        super(FeedForward, self).__init__()
+        self.fc = nn.Linear(in_features, out_features)
 
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.fc(x)
+        x = F.relu(x)
+        return x
+    
 class LLM(nn.Module):
     def __init__(self, 
                  block_size: int, 
@@ -114,6 +127,7 @@ class LLM(nn.Module):
         self.token_embeddings = nn.Embedding(vocab_size, embedding_dim)
         self.positional_embeddings = nn.Embedding(block_size, embedding_dim)
         self.heads = MultiHead(block_size, embedding_dim, head_size, n_heads)
+        self.ff = FeedForward(head_size * n_heads, head_size * n_heads)
         self.fc = nn.Linear(head_size * n_heads, vocab_size)
         self.register_buffer('range', torch.arange(block_size))
         self.block_size = block_size
@@ -141,9 +155,11 @@ class LLM(nn.Module):
         # for predicting the next token
         x = tok_vect + pos_vect # (B, T, embedding_dim)
 
-        att = self.heads(x) # (B, T, head_size)
+        x = self.heads(x) # (B, T, head_size * n_heads)
         
-        logits = self.fc(att) # (B, T, vocab_size)
+        x = self.ff(x) # (B, T, head_size * n_heads)
+
+        logits = self.fc(x) # (B, T, vocab_size)
 
         _, _, C = logits.shape
 

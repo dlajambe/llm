@@ -1,8 +1,6 @@
 import torch
-import torch.nn.functional as F
-from models import LLM, train_model
-from text_preprocessing import CharTokenizer
-from torch.utils.data import DataLoader
+from modules.models import LLM, train_model
+from modules.text_preprocessing import CharTokenizer
 import time
 
 start_time = time.perf_counter()
