@@ -12,6 +12,40 @@ def train_model(model: nn.Module,
                 max_iters: int,
                 eval_interval: int,
                 eval_batches: int) -> None:
+    """
+    Trains a large language model with the provided hyperparameters.
+
+    Parameters
+    ----------
+    data_train : Tensor
+        A 1D tensor containing the data to be used to train the model.
+
+    data_val : Tensor
+        A 1D tensor containing the data to be used to evaluate the
+        model's performance during training.
+
+    batch_size : int
+        The number of token sequences to be used in each batch of
+        training data.
+
+    block_size : int
+        The number of tokens in each token sequence.
+
+    lr : float
+        The learning rate to be used during training.
+
+    max_iters : int
+        The maximum number training iterations to be executed before
+        termination.
+
+    eval_interval : int
+        How often the model's performance should be evaluated, in number
+        of batches.
+
+    eval_batches : int
+        The number of batches to use when evaluating the model's
+        performance at each evaluation interval.
+    """
     model.train()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
@@ -51,6 +85,30 @@ def train_model(model: nn.Module,
 # from the constructor functions of all classes
 
 class Head(nn.Module):
+    """
+    Implements a single attention head, as described in the Attention is
+    All You Need paper.
+
+    Attributes
+    ----------
+    key : Linear
+        Used to project the input into the key space, which indicates 
+        what each input offers.
+
+    query : Linear
+        Used to project the input into the query space, which indicates
+        what each input is looking for.
+
+    value : Linear
+        Used to project the input into the value space, which contains
+        the actual values offered by an input.
+
+    Methods
+    -------
+    forward(x)
+        Returns the result of passing the input x through the attention
+        head.
+    """
     def __init__(self, 
                  block_size: int, 
                  embed_dim: int, 
@@ -92,6 +150,21 @@ class Head(nn.Module):
         return output
 
 class MultiHead(nn.Module):
+    """
+    Implements a multi-headed attention block.
+
+    Attributes
+    ----------
+    heads : ModuleList
+        Contains the individual Head objects comprising the multi-headed
+        attention block.
+
+    Methods
+    -------
+    forward(x)
+        Returns the result of passing the input x through the
+        multi-headed attention block.
+    """
     def __init__(self, 
                  block_size: int, 
                  embed_dim: int, 
@@ -106,15 +179,30 @@ class MultiHead(nn.Module):
         return torch.cat([head.forward(x) for head in self.heads], dim=-1)
     
 class FeedForward(nn.Module):
+    """
+    Implements a simple feed-forward block of a transformer model.
+
+    Attributes
+    ----------
+    net : Sequential
+        Contains the linear layer and ReLU activation function of the
+        feed-forward block.
+
+    Methods
+    -------
+    forward(x)
+        Returns the result of passing the input x through the
+        feed-forward block.
+    """
     def __init__(self, 
                  in_features: int, out_features: int) -> None:
         super(FeedForward, self).__init__()
-        self.fc = nn.Linear(in_features, out_features)
+        self.net = nn.Sequential(
+            nn.Linear(in_features, out_features),
+            nn.ReLU())
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.fc(x)
-        x = F.relu(x)
-        return x
+        return self.net(x)
 
 class Block(nn.Module):
     def __init__(self, 
@@ -128,7 +216,6 @@ class Block(nn.Module):
 
     def forward(self, x: torch.Tensor):
         pass
-        
 
 class LLM(nn.Module):
     def __init__(self, 
@@ -142,8 +229,8 @@ class LLM(nn.Module):
         self.positional_embeddings = nn.Embedding(block_size, embed_dim)
         self.heads = MultiHead(block_size, embed_dim, head_size, n_heads)
         self.ff = FeedForward(head_size * n_heads, head_size * n_heads)
-        self.fc = nn.Linear(head_size * n_heads, vocab_size)
-        self.register_buffer('range', torch.arange(block_size))
+        self.output = nn.Linear(head_size * n_heads, vocab_size)
+        self.register_buffer('positions', torch.arange(block_size))
         self.block_size = block_size
 
     def forward(self, x: torch.Tensor, y: torch.Tensor=None) -> torch.Tensor:
@@ -162,7 +249,7 @@ class LLM(nn.Module):
         tok_vect = self.token_embeddings(x) # (B, T, embed_dim)
 
         # # (T, embed_dim) 
-        pos_vect = self.positional_embeddings(self.range[:T])
+        pos_vect = self.positional_embeddings(self.positions[:T])
 
         # After adding the token and position vectors together, x 
         # contains both types of information, making it more useful
@@ -173,7 +260,7 @@ class LLM(nn.Module):
         
         x = self.ff(x) # (B, T, head_size * n_heads)
 
-        logits = self.fc(x) # (B, T, vocab_size)
+        logits = self.output(x) # (B, T, vocab_size)
 
         _, _, C = logits.shape
 
