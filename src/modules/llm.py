@@ -194,13 +194,13 @@ class FeedForward(nn.Module):
         Returns the result of passing the input x through the
         feed-forward block.
     """
-    def __init__(self, 
-                 in_features: int, out_features: int) -> None:
+    def __init__(self, n_features: int, proj_factor: int) -> None:
         super(FeedForward, self).__init__()
         self.net = nn.Sequential(
-            nn.Linear(in_features, out_features),
-            nn.ReLU())
-
+            nn.Linear(n_features, proj_factor * n_features),
+            nn.ReLU(),
+            nn.Linear(proj_factor * n_features, n_features))
+        
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
 
@@ -228,7 +228,7 @@ class LLM(nn.Module):
         self.token_embeddings = nn.Embedding(vocab_size, embed_dim)
         self.positional_embeddings = nn.Embedding(block_size, embed_dim)
         self.heads = MultiHead(block_size, embed_dim, head_size, n_heads)
-        self.ff = FeedForward(head_size * n_heads, head_size * n_heads)
+        self.ff = FeedForward(head_size * n_heads, 4)
         self.output = nn.Linear(head_size * n_heads, vocab_size)
         self.register_buffer('positions', torch.arange(block_size))
         self.block_size = block_size
