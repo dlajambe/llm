@@ -174,9 +174,12 @@ class MultiHead(nn.Module):
         self.heads = nn.ModuleList(
             [Head(block_size, embed_dim, head_size) 
              for _ in range(n_heads)])
+        self.proj = nn.Linear(n_heads * head_size, n_heads * head_size)
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return torch.cat([head.forward(x) for head in self.heads], dim=-1)
+        x = torch.cat([head.forward(x) for head in self.heads], dim=-1)
+        x = self.proj(x)
+        return x
     
 class Feedforward(nn.Module):
     """
@@ -236,8 +239,9 @@ class Block(nn.Module):
         self.ff = Feedforward(n_heads * head_size, ff_proj_factor)
 
     def forward(self, x: torch.Tensor):
-        x = self.multi_head(x)
-        x = self.ff(x)
+        # Skip connections are added to improve model training
+        x = x + self.multi_head(x)
+        x = x + self.ff(x)
         return x
 
 class LLM(nn.Module):
@@ -251,8 +255,10 @@ class LLM(nn.Module):
         super(LLM, self).__init__()
         self.token_embeddings = nn.Embedding(vocab_size, embed_dim)
         self.positional_embeddings = nn.Embedding(block_size, embed_dim)
-        self.block = Block(block_size, embed_dim, head_size,
-                           n_heads, ff_proj_factor)
+        self.blocks = nn.Sequential(
+            Block(block_size, embed_dim, head_size, n_heads, ff_proj_factor),
+            Block(block_size, embed_dim, head_size, n_heads, ff_proj_factor),
+            Block(block_size, embed_dim, head_size, n_heads, ff_proj_factor))
         self.output = nn.Linear(head_size * n_heads, vocab_size)
         self.register_buffer('positions', torch.arange(block_size))
         self.block_size = block_size
@@ -280,7 +286,7 @@ class LLM(nn.Module):
         # for predicting the next token
         x = tok_vect + pos_vect # (B, T, embed_dim)
 
-        x = self.block(x) # (B, T, head_size * n_heads)
+        x = self.blocks(x) # (B, T, head_size * n_heads)
 
         logits = self.output(x) # (B, T, vocab_size)
 
@@ -316,6 +322,3 @@ class LLM(nn.Module):
             next_idx = torch.multinomial(probs[[-1]], num_samples=1)
             output = torch.cat((output, next_idx), dim=1)
         return output
-    
-    def predict(self) -> torch.Tensor:
-        pass
