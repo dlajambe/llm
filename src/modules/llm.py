@@ -185,7 +185,7 @@ class Feedforward(nn.Module):
     Attributes
     ----------
     net : Sequential
-        Contains the linear layer and ReLU activation function of the
+        Contains the linear layers and ReLU activation function of the
         feedforward block.
 
     Methods
@@ -205,12 +205,32 @@ class Feedforward(nn.Module):
         return self.net(x)
 
 class Block(nn.Module):
+    """
+    Implements a single self-contained transformer block.
+
+    Attributes
+    ----------
+    multi_head : MultiHead
+        The multi-headed attention head block used to recognize patterns
+        within the input sequence.
+
+    ff : Feedforward
+        A feedforward layer used to gather information from the output
+        of the multi-head attention block.
+    
+    Methods
+    -------
+    forward(x)
+        Returns the result of passing the input x through the
+        block.
+    """
     def __init__(self, 
                  block_size: int, 
                  embed_dim: int, 
                  head_size: int,
                  n_heads: int,
                  ff_proj_factor: int):
+        super(Block, self).__init__()
         self.multi_head = MultiHead(
             block_size, embed_dim, head_size, n_heads)
         self.ff = Feedforward(n_heads * head_size, ff_proj_factor)
@@ -231,8 +251,8 @@ class LLM(nn.Module):
         super(LLM, self).__init__()
         self.token_embeddings = nn.Embedding(vocab_size, embed_dim)
         self.positional_embeddings = nn.Embedding(block_size, embed_dim)
-        self.heads = MultiHead(block_size, embed_dim, head_size, n_heads)
-        self.ff = Feedforward(head_size * n_heads, ff_proj_factor)
+        self.block = Block(block_size, embed_dim, head_size,
+                           n_heads, ff_proj_factor)
         self.output = nn.Linear(head_size * n_heads, vocab_size)
         self.register_buffer('positions', torch.arange(block_size))
         self.block_size = block_size
@@ -260,9 +280,7 @@ class LLM(nn.Module):
         # for predicting the next token
         x = tok_vect + pos_vect # (B, T, embed_dim)
 
-        x = self.heads(x) # (B, T, head_size * n_heads)
-        
-        x = self.ff(x) # (B, T, head_size * n_heads)
+        x = self.block(x) # (B, T, head_size * n_heads)
 
         logits = self.output(x) # (B, T, vocab_size)
 
