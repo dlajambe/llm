@@ -178,24 +178,24 @@ class MultiHead(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return torch.cat([head.forward(x) for head in self.heads], dim=-1)
     
-class FeedForward(nn.Module):
+class Feedforward(nn.Module):
     """
-    Implements a simple feed-forward block of a transformer model.
+    Implements a simple feedforward block of a transformer model.
 
     Attributes
     ----------
     net : Sequential
         Contains the linear layer and ReLU activation function of the
-        feed-forward block.
+        feedforward block.
 
     Methods
     -------
     forward(x)
         Returns the result of passing the input x through the
-        feed-forward block.
+        feedforward block.
     """
     def __init__(self, n_features: int, proj_factor: int) -> None:
-        super(FeedForward, self).__init__()
+        super(Feedforward, self).__init__()
         self.net = nn.Sequential(
             nn.Linear(n_features, proj_factor * n_features),
             nn.ReLU(),
@@ -209,13 +209,16 @@ class Block(nn.Module):
                  block_size: int, 
                  embed_dim: int, 
                  head_size: int,
-                 n_heads: int):
+                 n_heads: int,
+                 ff_proj_factor: int):
         self.multi_head = MultiHead(
             block_size, embed_dim, head_size, n_heads)
-        self.ff = FeedForward()
+        self.ff = Feedforward(n_heads * head_size, ff_proj_factor)
 
     def forward(self, x: torch.Tensor):
-        pass
+        x = self.multi_head(x)
+        x = self.ff(x)
+        return x
 
 class LLM(nn.Module):
     def __init__(self, 
@@ -223,12 +226,13 @@ class LLM(nn.Module):
                  embed_dim: int, 
                  vocab_size: int,
                  head_size: int,
-                 n_heads: int):
+                 n_heads: int,
+                 ff_proj_factor: int):
         super(LLM, self).__init__()
         self.token_embeddings = nn.Embedding(vocab_size, embed_dim)
         self.positional_embeddings = nn.Embedding(block_size, embed_dim)
         self.heads = MultiHead(block_size, embed_dim, head_size, n_heads)
-        self.ff = FeedForward(head_size * n_heads, 4)
+        self.ff = Feedforward(head_size * n_heads, ff_proj_factor)
         self.output = nn.Linear(head_size * n_heads, vocab_size)
         self.register_buffer('positions', torch.arange(block_size))
         self.block_size = block_size
