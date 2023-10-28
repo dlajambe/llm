@@ -10,13 +10,13 @@ start_time = time.perf_counter()
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 block_size = 8
-embed_dim = 32
+n_embed = 32
 n_heads = 4
 ff_proj_factor = 4
-if embed_dim % n_heads != 0:
+if n_embed % n_heads != 0:
     raise ValueError(
         'Embedding dimension must be divisible by number of heads')
-head_size = int(embed_dim / n_heads)
+head_size = int(n_embed / n_heads)
 
 batch_size = 64
 lr = 1e-3
@@ -30,7 +30,7 @@ torch.manual_seed(seed)
 print('Device: {}'.format(device))
 print('Model Hyperparameters:')
 print('\tBlock size: {}'.format(block_size))
-print('\tEmbedding dim: {}'.format(embed_dim))
+print('\tNum embeddings: {}'.format(n_embed))
 print('\tNum heads size: {}'.format(n_heads))
 print('\tHead size: {}'.format(head_size))
 print('\tFeed forward projection factor: {}\n'.format(ff_proj_factor))
@@ -66,7 +66,7 @@ data_train = data[:n_train]
 data_val = data[n_train:]
 
 # # Step 4 - Create the model
-model = LLM(block_size, embed_dim, vocab_size, 
+model = LLM(block_size, n_embed, vocab_size, 
             head_size, n_heads, ff_proj_factor)
 model = model.to(device)
 

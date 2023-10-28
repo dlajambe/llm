@@ -207,6 +207,20 @@ class Feedforward(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
 
+class LayerNorm:
+    def __init__(self, dim: int) -> None:
+        #super(LayerNorm, self).__init__()
+        self.eps = 1e-5
+        self.gain = torch.ones(dim, device = 'cuda')
+        self.bias = torch.zeros(dim, device = 'cuda')
+
+    def __call__(self, x: torch.Tensor) -> torch.Tensor:
+        mean = torch.mean(x, 1, keepdim=True)
+        var = torch.var(x, 1, keepdim=True)
+
+        x = (x - mean)/torch.sqrt(var + self.eps) * self.gain + self.bias
+        return x
+
 class Block(nn.Module):
     """
     Implements a single self-contained transformer block.
@@ -237,11 +251,13 @@ class Block(nn.Module):
         self.multi_head = MultiHead(
             block_size, embed_dim, head_size, n_heads)
         self.ff = Feedforward(n_heads * head_size, ff_proj_factor)
+        self.ln1 = nn.LayerNorm(n_heads * head_size)
+        self.ln2 = nn.LayerNorm(n_heads * head_size)
 
     def forward(self, x: torch.Tensor):
         # Skip connections are added to improve model training
-        x = x + self.multi_head(x)
-        x = x + self.ff(x)
+        x = x + self.multi_head(self.ln1(x))
+        x = x + self.ff(self.ln1(x))
         return x
 
 class LLM(nn.Module):
@@ -259,6 +275,7 @@ class LLM(nn.Module):
             Block(block_size, embed_dim, head_size, n_heads, ff_proj_factor),
             Block(block_size, embed_dim, head_size, n_heads, ff_proj_factor),
             Block(block_size, embed_dim, head_size, n_heads, ff_proj_factor))
+        self.ln = nn.LayerNorm(head_size * n_heads)
         self.output = nn.Linear(head_size * n_heads, vocab_size)
         self.register_buffer('positions', torch.arange(block_size))
         self.block_size = block_size
@@ -287,6 +304,8 @@ class LLM(nn.Module):
         x = tok_vect + pos_vect # (B, T, embed_dim)
 
         x = self.blocks(x) # (B, T, head_size * n_heads)
+
+        x = self.ln(x) # (B, T, head_size * n_heads)
 
         logits = self.output(x) # (B, T, vocab_size)
 
