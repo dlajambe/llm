@@ -207,19 +207,53 @@ class Feedforward(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
 
-class LayerNorm:
-    def __init__(self, dim: int) -> None:
-        #super(LayerNorm, self).__init__()
-        self.eps = 1e-5
-        self.gain = torch.ones(dim, device = 'cuda')
-        self.bias = torch.zeros(dim, device = 'cuda')
+class LayerNorm(nn.Module):
+    """
+    Standardizes the input Tensor to 0 mean and unit variance across
+    the channel dimension. Includes optional gain and bias parameters
+    that can be optimized during training.
 
-    def __call__(self, x: torch.Tensor) -> torch.Tensor:
-        mean = torch.mean(x, 1, keepdim=True)
-        var = torch.var(x, 1, keepdim=True)
+    Attributes
+    ----------
+    eps : float
+        Added to the square root term to ensure numerical stability
 
-        x = (x - mean)/torch.sqrt(var + self.eps) * self.gain + self.bias
-        return x
+    gain : Parameter
+        Contains the gain scaling factors to apply after standardization
+        across the channels has occurred.
+
+    bias : Parameter
+        Contains the bias corrections to be added after standardization
+        across the channels has occurred.
+    
+    Methods
+    -------
+    forward(x)
+        Returns the result of passing the input x through the
+        block.
+
+    parameters()
+        Returns the gain and bias attributes of the LayerNorm object.
+    """
+    def __init__(
+            self, 
+            dim: int, 
+            eps: float=1e-5, 
+            requires_grad: bool=True) -> None:
+        super(LayerNorm, self).__init__()
+        self.eps = eps
+        self.register_parameter(
+            'gain', torch.nn.Parameter(torch.ones(dim), requires_grad))
+        self.register_parameter(
+            'bias', torch.nn.Parameter(torch.zeros(dim), requires_grad))
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        mean = x.mean(-1, keepdim=True)
+        var = x.var(-1, keepdim=True)
+        return (x - mean)/torch.sqrt(var + self.eps) * self.gain + self.bias
+    
+    def parameters(self):
+        return [self.gain, self.bias]
 
 class Block(nn.Module):
     """
@@ -251,13 +285,13 @@ class Block(nn.Module):
         self.multi_head = MultiHead(
             block_size, embed_dim, head_size, n_heads)
         self.ff = Feedforward(n_heads * head_size, ff_proj_factor)
-        self.ln1 = nn.LayerNorm(n_heads * head_size)
-        self.ln2 = nn.LayerNorm(n_heads * head_size)
+        self.ln1 = LayerNorm(n_heads * head_size)
+        self.ln2 = LayerNorm(n_heads * head_size)
 
     def forward(self, x: torch.Tensor):
         # Skip connections are added to improve model training
         x = x + self.multi_head(self.ln1(x))
-        x = x + self.ff(self.ln1(x))
+        x = x + self.ff(self.ln2(x))
         return x
 
 class LLM(nn.Module):
@@ -275,7 +309,7 @@ class LLM(nn.Module):
             Block(block_size, embed_dim, head_size, n_heads, ff_proj_factor),
             Block(block_size, embed_dim, head_size, n_heads, ff_proj_factor),
             Block(block_size, embed_dim, head_size, n_heads, ff_proj_factor))
-        self.ln = nn.LayerNorm(head_size * n_heads)
+        self.ln = LayerNorm(head_size * n_heads)
         self.output = nn.Linear(head_size * n_heads, vocab_size)
         self.register_buffer('positions', torch.arange(block_size))
         self.block_size = block_size
