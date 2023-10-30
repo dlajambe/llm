@@ -111,12 +111,14 @@ class Head(nn.Module):
     """
     def __init__(self, 
                  block_size: int, 
-                 embed_dim: int, 
-                 head_size: int) -> None:
+                 n_embed: int, 
+                 head_size: int,
+                 dropout_frac: float) -> None:
         super(Head, self).__init__()
-        self.key = nn.Linear(embed_dim, head_size, bias=False)
-        self.query = nn.Linear(embed_dim, head_size, bias=False)
-        self.value = nn.Linear(embed_dim, head_size, bias=False)
+        self.key = nn.Linear(n_embed, head_size, bias=False)
+        self.query = nn.Linear(n_embed, head_size, bias=False)
+        self.value = nn.Linear(n_embed, head_size, bias=False)
+        self.dropout = nn.Dropout(dropout_frac)
 
         self.register_buffer(
             'mask', torch.tril(torch.ones(block_size, block_size)))
@@ -147,6 +149,11 @@ class Head(nn.Module):
 
         # (B, T, T) x (B, T, head_size) x  = (B, T, head_size)
         output = weights @ v
+
+        # Some of the interactions are turned off to prevent overfitting
+        # during training
+        output = self.dropout(output)
+
         return output
 
 class MultiHead(nn.Module):
@@ -167,18 +174,21 @@ class MultiHead(nn.Module):
     """
     def __init__(self, 
                  block_size: int, 
-                 embed_dim: int, 
+                 n_embed: int, 
                  head_size: int,
-                 n_heads: int) -> None:
+                 n_heads: int,
+                 dropout_frac: float) -> None:
         super(MultiHead, self).__init__()
         self.heads = nn.ModuleList(
-            [Head(block_size, embed_dim, head_size) 
+            [Head(block_size, n_embed, head_size, dropout_frac) 
              for _ in range(n_heads)])
         self.proj = nn.Linear(n_heads * head_size, n_heads * head_size)
-        
+        self.dropout = nn.Dropout(dropout_frac)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = torch.cat([head.forward(x) for head in self.heads], dim=-1)
         x = self.proj(x)
+        x = self.dropout(x)
         return x
     
 class Feedforward(nn.Module):
@@ -197,12 +207,17 @@ class Feedforward(nn.Module):
         Returns the result of passing the input x through the
         feedforward block.
     """
-    def __init__(self, n_features: int, proj_factor: int) -> None:
+    def __init__(
+            self, 
+            n_features: int, 
+            proj_factor: int, 
+            dropout_frac: float) -> None:
         super(Feedforward, self).__init__()
         self.net = nn.Sequential(
             nn.Linear(n_features, proj_factor * n_features),
             nn.ReLU(),
-            nn.Linear(proj_factor * n_features, n_features))
+            nn.Linear(proj_factor * n_features, n_features),
+            nn.Dropout(dropout_frac))
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.net(x)
@@ -255,7 +270,7 @@ class LayerNorm(nn.Module):
     def parameters(self):
         return [self.gain, self.bias]
 
-class Block(nn.Module):
+class TransBlock(nn.Module):
     """
     Implements a single self-contained transformer block.
 
@@ -277,16 +292,17 @@ class Block(nn.Module):
     """
     def __init__(self, 
                  block_size: int, 
-                 embed_dim: int, 
+                 n_embed: int, 
                  head_size: int,
                  n_heads: int,
-                 ff_proj_factor: int):
-        super(Block, self).__init__()
+                 ff_proj_factor: int,
+                 dropout_frac: float):
+        super(TransBlock, self).__init__()
         self.multi_head = MultiHead(
-            block_size, embed_dim, head_size, n_heads)
-        self.ff = Feedforward(n_heads * head_size, ff_proj_factor)
-        self.ln1 = LayerNorm(n_heads * head_size)
-        self.ln2 = LayerNorm(n_heads * head_size)
+            block_size, n_embed, head_size, n_heads, dropout_frac)
+        self.ff = Feedforward(n_heads*head_size, ff_proj_factor, dropout_frac)
+        self.ln1 = LayerNorm(n_heads*head_size)
+        self.ln2 = LayerNorm(n_heads*head_size)
 
     def forward(self, x: torch.Tensor):
         # Skip connections are added to improve model training
@@ -297,18 +313,24 @@ class Block(nn.Module):
 class LLM(nn.Module):
     def __init__(self, 
                  block_size: int, 
-                 embed_dim: int, 
+                 n_embed: int, 
                  vocab_size: int,
                  head_size: int,
                  n_heads: int,
-                 ff_proj_factor: int):
+                 ff_proj_factor: int,
+                 n_trans_blocks: int,
+                 dropout_frac: float):
         super(LLM, self).__init__()
-        self.token_embeddings = nn.Embedding(vocab_size, embed_dim)
-        self.positional_embeddings = nn.Embedding(block_size, embed_dim)
-        self.blocks = nn.Sequential(
-            Block(block_size, embed_dim, head_size, n_heads, ff_proj_factor),
-            Block(block_size, embed_dim, head_size, n_heads, ff_proj_factor),
-            Block(block_size, embed_dim, head_size, n_heads, ff_proj_factor))
+        self.token_embeddings = nn.Embedding(vocab_size, n_embed)
+        self.positional_embeddings = nn.Embedding(block_size, n_embed)
+        self.trans_blocks = nn.Sequential(
+            *[TransBlock(
+                block_size,
+                n_embed,
+                head_size,
+                n_heads,
+                ff_proj_factor,
+                dropout_frac) for _ in range(n_trans_blocks)])
         self.ln = LayerNorm(head_size * n_heads)
         self.output = nn.Linear(head_size * n_heads, vocab_size)
         self.register_buffer('positions', torch.arange(block_size))
@@ -327,17 +349,17 @@ class LLM(nn.Module):
         # whereas positional information is captured through the
         # poisition embedding
         
-        tok_vect = self.token_embeddings(x) # (B, T, embed_dim)
+        tok_vect = self.token_embeddings(x) # (B, T, n_embed)
 
-        # # (T, embed_dim) 
+        # # (T, n_embed) 
         pos_vect = self.positional_embeddings(self.positions[:T])
 
         # After adding the token and position vectors together, x 
         # contains both types of information, making it more useful
         # for predicting the next token
-        x = tok_vect + pos_vect # (B, T, embed_dim)
+        x = tok_vect + pos_vect # (B, T, n_embed)
 
-        x = self.blocks(x) # (B, T, head_size * n_heads)
+        x = self.trans_blocks(x) # (B, T, head_size * n_heads)
 
         x = self.ln(x) # (B, T, head_size * n_heads)
 

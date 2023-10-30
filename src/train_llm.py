@@ -9,7 +9,7 @@ start_time = time.perf_counter()
 # These parameters can be modified / tuned to improve model performance
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-block_size = 8
+block_size = 256
 n_embed = 32
 n_heads = 4
 ff_proj_factor = 4
@@ -17,6 +17,7 @@ if n_embed % n_heads != 0:
     raise ValueError(
         'Embedding dimension must be divisible by number of heads')
 head_size = int(n_embed / n_heads)
+n_trans_blocks = 4
 
 batch_size = 64
 lr = 1e-3
@@ -24,6 +25,7 @@ max_training_iters = 10000
 seed = 1337
 eval_interval = 250
 eval_batches = 200
+dropout_frac = 0.2
 
 torch.manual_seed(seed)
 
@@ -67,7 +69,7 @@ data_val = data[n_train:]
 
 # # Step 4 - Create the model
 model = LLM(block_size, n_embed, vocab_size, 
-            head_size, n_heads, ff_proj_factor)
+            head_size, n_heads, ff_proj_factor, n_trans_blocks, dropout_frac)
 model = model.to(device)
 
 # Step 5 - Train the model
