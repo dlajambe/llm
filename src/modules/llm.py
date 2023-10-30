@@ -147,12 +147,12 @@ class Head(nn.Module):
         # weights are standardized
         weights = F.softmax(weights, -1)
 
-        # (B, T, T) x (B, T, head_size) x  = (B, T, head_size)
-        output = weights @ v
-
         # Some of the interactions are turned off to prevent overfitting
         # during training
-        output = self.dropout(output)
+        weights = self.dropout(weights)
+
+        # (B, T, T) x (B, T, head_size) x  = (B, T, head_size)
+        output = weights @ v
 
         return output
 
@@ -301,8 +301,8 @@ class TransBlock(nn.Module):
         self.multi_head = MultiHead(
             block_size, n_embed, head_size, n_heads, dropout_frac)
         self.ff = Feedforward(n_heads*head_size, ff_proj_factor, dropout_frac)
-        self.ln1 = LayerNorm(n_heads*head_size)
-        self.ln2 = LayerNorm(n_heads*head_size)
+        self.ln1 = nn.LayerNorm(n_heads*head_size)
+        self.ln2 = nn.LayerNorm(n_heads*head_size)
 
     def forward(self, x: torch.Tensor):
         # Skip connections are added to improve model training
@@ -331,7 +331,7 @@ class LLM(nn.Module):
                 n_heads,
                 ff_proj_factor,
                 dropout_frac) for _ in range(n_trans_blocks)])
-        self.ln = LayerNorm(head_size * n_heads)
+        self.ln = nn.LayerNorm(head_size * n_heads)
         self.output = nn.Linear(head_size * n_heads, vocab_size)
         self.register_buffer('positions', torch.arange(block_size))
         self.block_size = block_size
@@ -381,7 +381,7 @@ class LLM(nn.Module):
                  output_length: int) -> torch.Tensor:
         if len(context.shape) != 2:
             raise ValueError('Invalid context provided, expected a 2D Tensor')
-        
+        self.eval()
         output = context.clone() # (B, T)
         for i in range(output_length):
 

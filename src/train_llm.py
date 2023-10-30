@@ -10,20 +10,20 @@ start_time = time.perf_counter()
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 block_size = 256
-n_embed = 32
-n_heads = 4
+n_embed = 384
+n_heads = 6
 ff_proj_factor = 4
 if n_embed % n_heads != 0:
     raise ValueError(
         'Embedding dimension must be divisible by number of heads')
 head_size = int(n_embed / n_heads)
-n_trans_blocks = 4
+n_trans_blocks = 6
 
 batch_size = 64
-lr = 1e-3
-max_training_iters = 10000
+lr = 3e-4
+max_training_iters = 5000
 seed = 1337
-eval_interval = 250
+eval_interval = 500
 eval_batches = 200
 dropout_frac = 0.2
 
@@ -33,7 +33,7 @@ print('Device: {}'.format(device))
 print('Model Hyperparameters:')
 print('\tBlock size: {}'.format(block_size))
 print('\tNum embeddings: {}'.format(n_embed))
-print('\tNum heads size: {}'.format(n_heads))
+print('\tNum heads: {}'.format(n_heads))
 print('\tHead size: {}'.format(head_size))
 print('\tFeed forward projection factor: {}\n'.format(ff_proj_factor))
 
