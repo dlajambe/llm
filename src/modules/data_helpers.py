@@ -22,9 +22,32 @@ class NGramDataSet(Dataset):
         return self.X[idx, :], self.y[idx]
     
 def get_batch(
-        data: torch.long, 
+        data: torch.Tensor, 
         batch_size: int, 
         block_size: int) -> torch.long:
+    """Retrieves a single batch of x and y data from the provided 
+    sequence data.
+
+    The starting points of the sequences comprising the batch are drawn
+    randomly from a uniform distribution.
+
+    Parameters
+    ----------
+    data : Tensor
+        A 1D tensor containing the sequence data from the batch is to be
+        created.
+
+    batch_size : int
+        The number of samples (rows) to be included in the batch.
+    
+    block_size : int
+        The sequence length of each sample in the batch.
+    Returns
+    -------
+    tuple[Tensor, Tensor]
+        The x and y tensors of size (batch_size, block_size) comprising
+        the batch of data.
+    """
     idx = torch.randint(
         low=0, 
         high=len(data) - 1 - block_size, 

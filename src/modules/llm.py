@@ -136,7 +136,7 @@ class Head(nn.Module):
         # Normalizing the weights prevents values from ballooning as the
         # head size increases, which would cause the probabilities to
         # "sharpen" during the softmax step
-        weights = weights * (1 / k.shape[-1] ** (-0.5))
+        weights = weights * (1 / (k.shape[-1] ** (0.5)))
 
         # Ensures that information from the future can not communicate
         # to the past within each individual block of data
@@ -310,6 +310,14 @@ class TransBlock(nn.Module):
         x = x + self.ff(self.ln2(x))
         return x
 
+def inititialize_params(module):
+    if isinstance(module, nn.Linear):
+        torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+        if module.bias is not None:
+            torch.nn.init.zeros_(module.bias)
+    elif isinstance(module, nn.Embedding):
+        torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+
 class LLM(nn.Module):
     def __init__(self, 
                  block_size: int, 
@@ -335,6 +343,7 @@ class LLM(nn.Module):
         self.output = nn.Linear(head_size * n_heads, vocab_size)
         self.register_buffer('positions', torch.arange(block_size))
         self.block_size = block_size
+        self.apply(inititialize_params)
 
     def forward(self, x: torch.Tensor, y: torch.Tensor=None) -> torch.Tensor:
         if type(x) != torch.Tensor:
