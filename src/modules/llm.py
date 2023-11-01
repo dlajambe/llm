@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from copy import deepcopy
+
 from modules.data_helpers import get_batch
 
 def train_model(model: nn.Module, 
@@ -49,7 +51,7 @@ def train_model(model: nn.Module,
     model.train()
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
-    def estimate_loss(eval_batches: int, n_batches: int):
+    def estimate_loss(eval_batches: int, n_batches: int) -> float:
         model.eval()
 
         # Gradients are not required during evaluation, so they are 
@@ -68,8 +70,12 @@ def train_model(model: nn.Module,
         print('\t{0} batches\tLoss (train):{1}\tLoss (val): {2}'.
               format(n_batches, losses_train.mean(), losses_val.mean()))
         model.train()
-
-    estimate_loss(eval_batches, 0)
+        return float(losses_val.mean())
+    
+    # Saving the best 
+    best_model = deepcopy(model.state_dict())
+    losses_val = []
+    losses_val.append(estimate_loss(eval_batches, 0))
     for i in range(max_iters):
         xb, yb = get_batch(data_train, batch_size, block_size)
         optimizer.zero_grad(set_to_none=True)
@@ -78,11 +84,21 @@ def train_model(model: nn.Module,
         optimizer.step()
 
         if (i + 1) % eval_interval == 0:
-            estimate_loss(eval_batches, i + 1)
+            losses_val.append(estimate_loss(eval_batches, i + 1))
+            
+            # An increase in the validation loss suggests that the model
+            # is fitting to noise and training should be terminated
+            if losses_val[-1] > losses_val[-2]:
+                print('\tValidation loss increased - training terminated')
+                break
+            # If a performance improvement was realized, the best
+            # model's state dict is saved for future use
+            elif losses_val[-1] < losses_val[-2]:
+                best_model = deepcopy(model.state_dict())
 
+    # Training is now complete, so the best model parameters are loaded
+    model.load_state_dict(best_model)
     model.eval()
-# TODO: See if there is a way to remove all of these parameters 
-# from the constructor functions of all classes
 
 class Head(nn.Module):
     """
@@ -310,15 +326,15 @@ class TransBlock(nn.Module):
         x = x + self.ff(self.ln2(x))
         return x
 
-def inititialize_params(module):
-    if isinstance(module, nn.Linear):
-        torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
-        if module.bias is not None:
-            torch.nn.init.zeros_(module.bias)
-    elif isinstance(module, nn.Embedding):
-        torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
-
 class LLM(nn.Module):
+    def _inititialize_params(self, module):
+        if isinstance(module, nn.Linear):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+            if module.bias is not None:
+                torch.nn.init.zeros_(module.bias)
+        elif isinstance(module, nn.Embedding):
+            torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
+
     def __init__(self, 
                  block_size: int, 
                  n_embed: int, 
@@ -343,7 +359,7 @@ class LLM(nn.Module):
         self.output = nn.Linear(head_size * n_heads, vocab_size)
         self.register_buffer('positions', torch.arange(block_size))
         self.block_size = block_size
-        self.apply(inititialize_params)
+        self.apply(self._inititialize_params)
 
     def forward(self, x: torch.Tensor, y: torch.Tensor=None) -> torch.Tensor:
         if type(x) != torch.Tensor:

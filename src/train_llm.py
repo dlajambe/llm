@@ -21,11 +21,11 @@ n_trans_blocks = 6
 
 batch_size = 64
 lr = 3e-4
-max_training_iters = 4000
+max_training_iters = 100000
 seed = 1337
 eval_interval = 500
 eval_batches = 200
-dropout_frac = 0.3
+dropout_frac = 0.35
 
 torch.manual_seed(seed)
 
