@@ -1,6 +1,7 @@
 import torch
 from modules.llm import LLM, train_model
 from modules.text_preprocessing import CharTokenizer
+from config.hyperparameters import Hyperparams
 import time
 
 start_time = time.perf_counter()
@@ -9,40 +10,23 @@ start_time = time.perf_counter()
 # These parameters can be modified / tuned to improve model performance
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-block_size = 256
-n_embed = 384
-n_heads = 6
-ff_proj_factor = 4
-if n_embed % n_heads != 0:
-    raise ValueError(
-        'Embedding dimension must be divisible by number of heads')
-head_size = int(n_embed / n_heads)
-n_trans_blocks = 6
-
-batch_size = 64
-lr = 3e-4
-max_training_iters = 100000
-seed = 1337
-eval_interval = 500
-eval_batches = 200
-dropout_frac = 0.35
-
-torch.manual_seed(seed)
+torch.manual_seed(Hyperparams.seed)
 
 print('Device: {}'.format(device))
 print('Model Hyperparameters:')
-print('\tBlock size: {}'.format(block_size))
-print('\tNum embeddings: {}'.format(n_embed))
-print('\tNum heads: {}'.format(n_heads))
-print('\tHead size: {}'.format(head_size))
-print('\tFeed forward projection factor: {}\n'.format(ff_proj_factor))
+print('\tBlock size: {}'.format(Hyperparams.block_size))
+print('\tNum embeddings: {}'.format(Hyperparams.n_embed))
+print('\tNum heads: {}'.format(Hyperparams.n_heads))
+print('\tHead size: {}'.format(Hyperparams.head_size))
+print('\tFeed forward projection factor: {}\n'.
+      format(Hyperparams.ff_proj_factor))
 
 print('Training Hyperparameters:')
-print('\tBatch size: {}'.format(batch_size))
-print('\tLearning rate: {}'.format(lr))
-print('\tMax training iterations: {}'.format(max_training_iters))
-print('\tEval interval: {}'.format(eval_interval))
-print('\tEval batches: {}\n'.format(eval_batches))
+print('\tBatch size: {}'.format(Hyperparams.batch_size))
+print('\tLearning rate: {}'.format(Hyperparams.lr))
+print('\tMax training iterations: {}'.format(Hyperparams.max_training_iters))
+print('\tEval interval: {}'.format(Hyperparams.eval_interval))
+print('\tEval batches: {}\n'.format(Hyperparams.eval_batches))
 
 # Step 1 - Import the data
 with open('data/shakespeare.txt', 'r', encoding='utf-8') as f:
@@ -55,7 +39,7 @@ tokenizer = CharTokenizer(char_set)
 
 # Step 3 - Generate matrices to store X and y data
 data = torch.tensor(tokenizer.encode(text), dtype=torch.long, device=device)
-n_samples = len(data) - block_size
+n_samples = len(data) - Hyperparams.block_size
 print('Text length: {} characters'.format(n_samples))
 
 # Step 3 - Split data into training and validation partitions
@@ -68,15 +52,27 @@ data_train = data[:n_train]
 data_val = data[n_train:]
 
 # # Step 4 - Create the model
-model = LLM(block_size, n_embed, vocab_size, 
-            head_size, n_heads, ff_proj_factor, n_trans_blocks, dropout_frac)
+model = LLM(Hyperparams.block_size, 
+            Hyperparams.n_embed, 
+            vocab_size, 
+            Hyperparams.head_size, 
+            Hyperparams.n_heads, 
+            Hyperparams.ff_proj_factor, 
+            Hyperparams.n_trans_blocks, 
+            Hyperparams.dropout_frac)
 model = model.to(device)
 
 # Step 5 - Train the model
 print('Training model...')
 train_model(
-    model, data_train, data_val, batch_size, block_size, 
-    lr, max_training_iters, eval_interval, eval_batches)
+    model, data_train, data_val, 
+    Hyperparams.batch_size, 
+    Hyperparams.block_size, 
+    Hyperparams.lr, 
+    Hyperparams.max_training_iters, 
+    Hyperparams.eval_interval, 
+    Hyperparams.eval_batches)
+
 context = torch.zeros((1, 1), dtype=torch.long, device=device)
 
 # Step 6 - Save the model parameters so they can be loaded in the future
