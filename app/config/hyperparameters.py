@@ -1,4 +1,7 @@
 class Hyperparams:
+    """Stores hyperparameters used during model construction, training
+    and evaluation.
+    """
     block_size = 256
     n_embed = 384
     n_heads = 6

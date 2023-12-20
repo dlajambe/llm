@@ -3,6 +3,7 @@ from modules.llm import LLM, train_model
 from modules.text_preprocessing import CharTokenizer
 from config.hyperparameters import Hyperparams
 import time
+import os
 
 start_time = time.perf_counter()
 
@@ -29,6 +30,7 @@ print('\tEval interval: {}'.format(Hyperparams.eval_interval))
 print('\tEval batches: {}\n'.format(Hyperparams.eval_batches))
 
 # Step 1 - Import the data
+# TODO: Add automatic download of dataset if not already present
 with open('data/shakespeare.txt', 'r', encoding='utf-8') as f:
     text = f.read()
 char_set = sorted(set(text))
@@ -77,7 +79,11 @@ context = torch.zeros((1, 1), dtype=torch.long, device=device)
 
 # Step 6 - Save the model parameters so they can be loaded in the future
 # without retraining the model
-torch.save(model.state_dict(), 'output/llm.pt')
+output_dir = 'output/'
+model_filename = 'llm.pt'
+if os.path.isdir(output_dir) == False:
+    os.mkdir(output_dir)
+torch.save(model.state_dict(), output_dir + model_filename)
 
 # Step 6 - Have some fun with text generation
 print('Generating output...')

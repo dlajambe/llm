@@ -19,7 +19,7 @@ Although higher performance can be achieved using word- or syllable-level embedd
 
 ## Getting Started
 
-The `train_llm.py` script contains an example of how to use the project to build a model that generates Shakespearean scripts from a user-provided starting character sequence.
+The `train_llm.py` script contains an example of how to use the project to build a generative large language model from an initial user-provided character sequence. Two sample datasets are provided (Shakespearean scripts and the Wizard of Oz), although they can be substituted with a user-provided text file.
 
 ### Dependencies
 
@@ -38,7 +38,7 @@ python train_model.py
 
 ## Acknowledgements
 
-This project was inspired by the excellent [tutorial](https://youtu.be/kCc8FmEb1nY?si=umG3WZzNv6TyMz43) by Andrej Karpathy.
+This project was inspired by Andrej Karpathy's excellent [LLM tutorial](https://youtu.be/kCc8FmEb1nY?si=umG3WZzNv6TyMz43).
 
 ## License
 
