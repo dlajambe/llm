@@ -30,16 +30,16 @@ print('\tEval interval: {}'.format(Hyperparams.eval_interval))
 print('\tEval batches: {}\n'.format(Hyperparams.eval_batches))
 
 # Step 1 - Import the data
-# TODO: Add automatic download of dataset if not already present
 with open('data/shakespeare.txt', 'r', encoding='utf-8') as f:
     text = f.read()
 char_set = sorted(set(text))
 vocab_size = len(char_set)
 
-# Step 2 - Create an tokenizer to decompose strings into integer arrays
+# Step 2 - Create a tokenizer to decompose strings into character-level
+# integer arrays
 tokenizer = CharTokenizer(char_set)
 
-# Step 3 - Generate matrices to store X and y data
+# Step 3 - Generate matrices to store x and y data
 data = torch.tensor(tokenizer.encode(text), dtype=torch.long, device=device)
 n_samples = len(data) - Hyperparams.block_size
 print('Text length: {} characters'.format(n_samples))
@@ -75,8 +75,6 @@ train_model(
     Hyperparams.eval_interval, 
     Hyperparams.eval_batches)
 
-context = torch.zeros((1, 1), dtype=torch.long, device=device)
-
 # Step 6 - Save the model parameters so they can be loaded in the future
 # without retraining the model
 output_dir = 'output/'
@@ -87,6 +85,7 @@ torch.save(model.state_dict(), output_dir + model_filename)
 
 # Step 6 - Have some fun with text generation
 print('Generating output...')
+context = torch.zeros((1, 1), dtype=torch.long, device=device)
 generated = model.generate(context, 500)
 print('Generated text: {}\n'.format(tokenizer.decode(generated.tolist()[0])))
 

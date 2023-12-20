@@ -27,7 +27,7 @@ All that is required is Python and a package manager such as Virtualenv or Conda
 
 ### Installation
 
-To install, simply clone the repository onto your machine and use your package manager to recreate the environment with the provided `requirements.txt` file. For first-time users, PyTorch can be somewhat difficult to install; instructions are available [here](https://pytorch.org/get-started/locally/).
+To install, simply clone the repository onto your machine and use your package manager to recreate the environment with the provided `requirements.txt` file. If you have Anaconda or Miniconda, you can instead use the `environment.yml` to reproduce the environment.
 
 ### Execution
 
