@@ -1,5 +1,5 @@
 import torch
-from modules.llm import LLM, train_model
+from modules.llm import LLM, train_llm
 from modules.text_preprocessing import CharTokenizer
 from config.hyperparameters import Hyperparams
 import time
@@ -72,7 +72,7 @@ def main():
 
     # Step 5 - Train the model
     print('Training model...')
-    train_model(
+    train_llm(
         model, data_train, data_val, 
         Hyperparams.batch_size, 
         Hyperparams.block_size, 

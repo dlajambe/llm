@@ -4,107 +4,6 @@ import torch.nn.functional as F
 from copy import deepcopy
 
 from modules.data_helpers import get_batch
-
-def train_model(model: nn.Module,
-                data_train: torch.Tensor,
-                data_val: torch.Tensor,
-                batch_size: int,
-                block_size: int,
-                lr: float,
-                max_iters: int,
-                eval_interval: int,
-                eval_batches: int) -> None:
-    """Initializes and trains a large language model with the provided
-    hyperparameters.
-
-    Parameters
-    ----------
-    data_train : Tensor
-        A 1D tensor containing the data to be used to train the model.
-
-    data_val : Tensor
-        A 1D tensor containing the data to be used to evaluate the
-        model's performance during training.
-
-    batch_size : int
-        The number of token sequences to be used in each batch of
-        training data.
-
-    block_size : int
-        The number of tokens in each token sequence.
-
-    lr : float
-        The learning rate to be used during training.
-
-    max_iters : int
-        The maximum number training iterations to be executed before
-        termination.
-
-    eval_interval : int
-        How often the model's performance should be evaluated, in number
-        of batches.
-
-    eval_batches : int
-        The number of batches to use when evaluating the model's
-        performance at each evaluation interval.
-    """
-    model.train()
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-
-    def estimate_loss(eval_batches: int, n_batches: int) -> float:
-        """Estimates the validation loss of the model in its current
-        state.
-        """
-        model.eval()
-
-        # Gradients are not required during evaluation, so they are 
-        # turned off to improve calculation speed
-        with torch.no_grad():
-            losses_train = torch.zeros(eval_batches)
-            losses_val = torch.zeros(eval_batches)
-            for i in range(eval_batches):
-                x_train, y_train = get_batch(
-                    data_train, batch_size, block_size)
-                x_val, y_val = get_batch(data_val, batch_size, block_size)
-                _ , loss_train = model.forward(x_train, y_train)
-                _ , loss_val = model.forward(x_val, y_val)
-                losses_train[i] = loss_train.item()
-                losses_val[i] = loss_val.item()
-        print('\t{0} batches\tLoss (train):{1}\tLoss (val): {2}'.
-              format(n_batches, losses_train.mean(), losses_val.mean()))
-        model.train()
-        return float(losses_val.mean())
-    
-    # Saving the best 
-    best_model_state = deepcopy(model.state_dict())
-    losses_val = []
-    losses_val.append(estimate_loss(eval_batches, 0))
-    for i in range(max_iters):
-        xb, yb = get_batch(data_train, batch_size, block_size)
-        optimizer.zero_grad(set_to_none=True)
-        logits, loss = model.forward(xb, yb)
-        loss.backward()
-        optimizer.step()
-
-        if (i + 1) % eval_interval == 0:
-            losses_val.append(estimate_loss(eval_batches, i + 1))
-            
-            # An increase in the validation loss suggests that the model
-            # is fitting to noise and training should be terminated
-            if losses_val[-1] > losses_val[-2]:
-                print('\tValidation loss increased - training terminated')
-                break
-            # If a performance improvement was realized, the best
-            # model's state dict is saved for future use
-            elif losses_val[-1] < losses_val[-2]:
-                best_model_state = deepcopy(model.state_dict())
-
-    # Training is now complete, so the best model parameters are loaded
-    # and the model is set to eval mode to deactivate training-specific
-    # layers (eg. dropout, batch normalization)
-    model.load_state_dict(best_model_state)
-    model.eval()
-
 class Head(nn.Module):
     """
     Implements a single attention head, as described in the Attention is
@@ -483,3 +382,128 @@ class LLM(nn.Module):
             next_idx = torch.multinomial(probs[[-1]], num_samples=1)
             output = torch.cat((output, next_idx), dim=1)
         return output
+
+def train_llm(model: LLM,
+              data_train: torch.Tensor,
+              data_val: torch.Tensor,
+              batch_size: int,
+              block_size: int,
+              lr: float,
+              max_iters: int,
+              eval_interval: int,
+              eval_batches: int) -> None:
+    """Initializes and trains a large language model with the provided
+    hyperparameters.
+
+    Parameters
+    ----------
+    data_train : Tensor
+        A 1D tensor containing the data to be used to train the model.
+
+    data_val : Tensor
+        A 1D tensor containing the data to be used to evaluate the
+        model's performance during training.
+
+    batch_size : int
+        The number of token sequences to be used in each batch of
+        training data.
+
+    block_size : int
+        The number of tokens in each token sequence.
+
+    lr : float
+        The learning rate to be used during training.
+
+    max_iters : int
+        The maximum number training iterations to be executed before
+        termination.
+
+    eval_interval : int
+        How often the model's performance should be evaluated, in number
+        of batches.
+
+    eval_batches : int
+        The number of batches to use when evaluating the model's
+        performance at each evaluation interval.
+    """
+    model.train()
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+
+    def estimate_loss(n_eval_batches: int, 
+                      current_batch_no: int) -> float:
+        """Estimates the training and validation loss of the model using
+        a random subset of the total number of training and validation
+        batches, respectively. The loss is estimated as the mean of the
+        loss of all sampled batches.
+
+        The estimated training and validation loss are both printed to
+        the console, but only the validation loss is returned.
+
+        Parameters
+        ----------
+        n_eval_batches : int
+            The number of randomly selected batches used to estimate the
+            training and validation loss.
+        
+        current_batch_no : int
+            The number of training batches that had been processed (used
+            to update the model parameters) when this method was called.
+            This number is strictly used to print console output.
+
+        Returns
+        -------
+        loss_val : float
+            The mean validation loss across all validation batches.
+        """
+        model.eval()
+
+        # Gradients are not required during evaluation, so they are 
+        # turned off to improve calculation speed
+        with torch.no_grad():
+            losses_train = torch.zeros(n_eval_batches)
+            losses_val = torch.zeros(n_eval_batches)
+            for i in range(n_eval_batches):
+                x_train, y_train = get_batch(
+                    data_train, batch_size, block_size)
+                x_val, y_val = get_batch(data_val, batch_size, block_size)
+                _ , loss_train = model.forward(x_train, y_train)
+                _ , loss_val = model.forward(x_val, y_val)
+                losses_train[i] = loss_train.item()
+                losses_val[i] = loss_val.item()
+
+        loss_train = float(losses_train.mean())
+        loss_val = float(losses_val.mean())
+        print('\t{0} batches\tLoss (train):{1}\tLoss (val): {2}'.
+              format(current_batch_no, loss_train, loss_val))
+        model.train()
+        return loss_val
+    
+    # Saving the best 
+    best_model_state = deepcopy(model.state_dict())
+    losses_val = []
+    losses_val.append(estimate_loss(eval_batches, 0))
+    for i in range(max_iters):
+        xb, yb = get_batch(data_train, batch_size, block_size)
+        optimizer.zero_grad(set_to_none=True)
+        logits, loss = model.forward(xb, yb)
+        loss.backward()
+        optimizer.step()
+
+        if (i + 1) % eval_interval == 0:
+            losses_val.append(estimate_loss(eval_batches, i + 1))
+            
+            # An increase in the validation loss suggests that the model
+            # is fitting to noise and training should be terminated
+            if losses_val[-1] > losses_val[-2]:
+                print('\tValidation loss increased - training terminated')
+                break
+            # If a performance improvement was realized, the best
+            # model's state dict is saved for future use
+            elif losses_val[-1] < losses_val[-2]:
+                best_model_state = deepcopy(model.state_dict())
+
+    # Training is now complete, so the best model parameters are loaded
+    # and the model is set to eval mode to deactivate training-specific
+    # layers (eg. dropout, batch normalization)
+    model.load_state_dict(best_model_state)
+    model.eval()
