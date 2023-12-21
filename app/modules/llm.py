@@ -5,17 +5,17 @@ from copy import deepcopy
 
 from modules.data_helpers import get_batch
 
-def train_model(model: nn.Module, 
-                data_train: torch.Tensor, 
+def train_model(model: nn.Module,
+                data_train: torch.Tensor,
                 data_val: torch.Tensor,
-                batch_size: int, 
+                batch_size: int,
                 block_size: int,
                 lr: float,
                 max_iters: int,
                 eval_interval: int,
                 eval_batches: int) -> None:
-    """
-    Trains a large language model with the provided hyperparameters.
+    """Initializes and trains a large language model with the provided
+    hyperparameters.
 
     Parameters
     ----------
@@ -52,6 +52,9 @@ def train_model(model: nn.Module,
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
     def estimate_loss(eval_batches: int, n_batches: int) -> float:
+        """Estimates the validation loss of the model in its current
+        state.
+        """
         model.eval()
 
         # Gradients are not required during evaluation, so they are 
@@ -73,7 +76,7 @@ def train_model(model: nn.Module,
         return float(losses_val.mean())
     
     # Saving the best 
-    best_model = deepcopy(model.state_dict())
+    best_model_state = deepcopy(model.state_dict())
     losses_val = []
     losses_val.append(estimate_loss(eval_batches, 0))
     for i in range(max_iters):
@@ -94,10 +97,12 @@ def train_model(model: nn.Module,
             # If a performance improvement was realized, the best
             # model's state dict is saved for future use
             elif losses_val[-1] < losses_val[-2]:
-                best_model = deepcopy(model.state_dict())
+                best_model_state = deepcopy(model.state_dict())
 
     # Training is now complete, so the best model parameters are loaded
-    model.load_state_dict(best_model)
+    # and the model is set to eval mode to deactivate training-specific
+    # layers (eg. dropout, batch normalization)
+    model.load_state_dict(best_model_state)
     model.eval()
 
 class Head(nn.Module):
@@ -140,6 +145,8 @@ class Head(nn.Module):
             'mask', torch.tril(torch.ones(block_size, block_size)))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        """
         # x dimensions: (batch_size, block_size, emedding_dim)
         B, T, E = x.shape
         k = self.key(x)   # (B, T, head_size)
@@ -362,8 +369,46 @@ class LLM(nn.Module):
         self.apply(self._inititialize_params)
 
     def forward(self, x: torch.Tensor, y: torch.Tensor=None) -> torch.Tensor:
+        """Calculates the logits for each token sequence and
+        subsequence in the input tensor (x). If a target (y) tensor is
+        provided, the cross-entropy loss is also calculated.
+
+        The input tensor (x) must be a B x T tensor:
+        - B: Batch size, i.e. number of token sequences
+        - T: Time, i.e. number of tokens per sequence (block size)
+
+        If a target tensor (y) is provided, it must also be of shape
+        B x T. Each elemnt in y contains the next token for the
+        corresponding subsequence in x.
+
+        Parameters
+        ----------
+        x : Tensor
+            The input tensor containing the token sequences for which 
+            logits are to be calculated.
+
+        y : Tensor, default=None
+            The target tensor containing the next token for each 
+            subsequence in x.
+
+        Returns
+        -------
+        logits : Tensor
+            The logits of all possible next tokens (vocab size) for each
+            subsequernce in x.
+
+        loss : Tensor
+            The cross-entropy loss of the predicted next tokens for each
+            subsequence in x. Only calculated if a target tensor is
+            provided.
+
+        """
         if type(x) != torch.Tensor:
-            raise ValueError('Expected Tensor, received {}'.format(type(x)))
+            raise ValueError('x must be a tensor, received {}'.format(type(x)))
+        
+        if type(y) != torch.Tensor and y != None:
+            raise ValueError('y must be a tensor or None, received {}'.
+                             format(type(x)))
         
         # x enters as a B x T tensor, where:
         # B = batch size, i.e. number of samples (batch_size)
@@ -373,10 +418,9 @@ class LLM(nn.Module):
         # Character information is captured through the token embedding,
         # whereas positional information is captured through the
         # poisition embedding
-        
         tok_vect = self.token_embeddings(x) # (B, T, n_embed)
 
-        # # (T, n_embed) 
+        # (T, n_embed) 
         pos_vect = self.positional_embeddings(self.positions[:T])
 
         # After adding the token and position vectors together, x 
@@ -392,7 +436,7 @@ class LLM(nn.Module):
 
         _, _, C = logits.shape
 
-        # Pytorch's cross entropy loss function requires an N x C tensor
+        # Pytorch's cross-entropy loss function requires an N x C tensor
         logits = logits.view(B*T, C)
         loss = None
         if y != None:
@@ -404,8 +448,8 @@ class LLM(nn.Module):
     def generate(self, 
                  context: torch.Tensor, 
                  output_length: int) -> torch.Tensor:
-        """Generates a sequence using the provided context as a starting
-        point.
+        """Generates a token sequence using the provided context as a
+        starting point.
 
         Parameters
         ----------
@@ -418,7 +462,7 @@ class LLM(nn.Module):
 
         Returns
         -------
-        Tensor
+        output : Tensor
             A tensor containing the generated token sequence.
         """
         if len(context.shape) != 2:

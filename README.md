@@ -1,12 +1,12 @@
-# GPT from Scratch
+# Large Language Model from Scratch
 
-In this project, a generative transformer-based language model was implemented from scratch using PyTorch. This project was inspired by the excellent [tutorial](https://youtu.be/kCc8FmEb1nY?si=umG3WZzNv6TyMz43) by Andrej Karpathy, although several improvements were made:
+In this project, a generative transformer-based large language model (LLM) was implemented from scratch using PyTorch. This project was inspired by Andrej Karpathy's excellent [LLM tutorial](https://youtu.be/kCc8FmEb1nY?si=umG3WZzNv6TyMz43), although several features were added:
 
 - Parameterization of all global variables
-- Refactoring of training script into functional components
+- Refactoring of training script into functional components to facilitate debugging
 - Implementation of layer normalization component of multi-head attention blocks from scratch
 - Implementation of a character tokenizer class to assist with data preprocessing
-- Full modularization of supporting classes and functions
+- Full modularization (without global variables) of supporting classes and functions to allow for reuse in other projects
 
 ## Description
 
@@ -19,7 +19,7 @@ Although higher performance can be achieved using word- or syllable-level embedd
 
 ## Getting Started
 
-The `train_llm.py` script contains an example of how to use the project to build a generative large language model from an initial user-provided character sequence. Two sample datasets are provided (Shakespearean scripts and the Wizard of Oz), although they can be substituted with a user-provided text file.
+The `train_llm.py` script contains an example of how to use the project to build a generative large language model from an initial user-provided character sequence. A sample dataset is provided (Shakespearean scripts), but it can be substituted with any user-provided text file.
 
 ### Dependencies
 
@@ -36,9 +36,7 @@ This program can be run through the command line. With your environment activate
 python train_model.py
 ```
 
-## Acknowledgements
-
-This project was inspired by Andrej Karpathy's excellent [LLM tutorial](https://youtu.be/kCc8FmEb1nY?si=umG3WZzNv6TyMz43).
+All hyperparameters are stored in `app/config/hyperparameters.py`. These values can be adjusted to change the model architecture, training, and evaluation characteristics.
 
 ## License
 
