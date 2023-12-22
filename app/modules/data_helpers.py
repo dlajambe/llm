@@ -21,7 +21,7 @@ class NGramDataSet(Dataset):
     def __getitem__(self, idx: int) -> dict:
         return self.X[idx, :], self.y[idx]
     
-def get_batch(
+def sample_batch(
         data: torch.Tensor, 
         batch_size: int, 
         block_size: int) -> torch.long:
@@ -34,20 +34,26 @@ def get_batch(
     Parameters
     ----------
     data : Tensor
-        A 1D tensor containing the sequence data from the batch is to be
-        created.
+        A 1D tensor containing the sequence data from which the batch is
+        to be created.
 
     batch_size : int
         The number of samples (rows) to be included in the batch.
     
     block_size : int
         The sequence length of each sample in the batch.
+
     Returns
     -------
     tuple[Tensor, Tensor]
         The x and y tensors of size (batch_size, block_size) comprising
         the batch of data.
     """
+    if type(data) != torch.Tensor:
+        raise TypeError('Expected a Tensor, received a {}'.format(type(data)))
+    elif len(data.shape) != 1:
+        raise ValueError('Expected a 1D Tensor, received a {}D Tensor'.
+                         format(len(data.shape)))
     idx = torch.randint(
         low=0, 
         high=len(data) - 1 - block_size, 

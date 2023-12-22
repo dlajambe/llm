@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from copy import deepcopy
 
-from modules.data_helpers import get_batch
+from modules.data_helpers import sample_batch
 class Head(nn.Module):
     """
     Implements a single attention head, as described in the Attention is
@@ -79,8 +79,7 @@ class Head(nn.Module):
         return output
 
 class MultiHead(nn.Module):
-    """
-    Implements a multi-headed attention block.
+    """Implements a multi-headed attention block.
 
     Attributes
     ----------
@@ -114,8 +113,7 @@ class MultiHead(nn.Module):
         return x
     
 class Feedforward(nn.Module):
-    """
-    Implements a simple feedforward block of a transformer model.
+    """Implements a simple feedforward block of a transformer model.
 
     Attributes
     ----------
@@ -145,10 +143,9 @@ class Feedforward(nn.Module):
         return self.net(x)
 
 class LayerNorm(nn.Module):
-    """
-    Standardizes the input Tensor to 0 mean and unit variance across
-    the channel dimension. Includes optional gain and bias parameters
-    that can be optimized during training.
+    """Standardizes the input Tensor to 0 mean and unit variance across
+    the channel dimension. Includes gain and bias parameters that can be
+    optimized during training.
 
     Attributes
     ----------
@@ -463,9 +460,9 @@ def train_llm(model: LLM,
             losses_train = torch.zeros(n_eval_batches)
             losses_val = torch.zeros(n_eval_batches)
             for i in range(n_eval_batches):
-                x_train, y_train = get_batch(
+                x_train, y_train = sample_batch(
                     data_train, batch_size, block_size)
-                x_val, y_val = get_batch(data_val, batch_size, block_size)
+                x_val, y_val = sample_batch(data_val, batch_size, block_size)
                 _ , loss_train = model.forward(x_train, y_train)
                 _ , loss_val = model.forward(x_val, y_val)
                 losses_train[i] = loss_train.item()
@@ -478,12 +475,12 @@ def train_llm(model: LLM,
         model.train()
         return loss_val
     
-    # Saving the best 
+    # A variable is created to Saving the best 
     best_model_state = deepcopy(model.state_dict())
     losses_val = []
     losses_val.append(estimate_loss(eval_batches, 0))
     for i in range(max_iters):
-        xb, yb = get_batch(data_train, batch_size, block_size)
+        xb, yb = sample_batch(data_train, batch_size, block_size)
         optimizer.zero_grad(set_to_none=True)
         logits, loss = model.forward(xb, yb)
         loss.backward()
