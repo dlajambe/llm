@@ -1,6 +1,6 @@
 # Large Language Model from Scratch
 
-In this project, a generative transformer-based large language model (LLM) was implemented from scratch using PyTorch. This project was inspired by Andrej Karpathy's excellent [LLM tutorial](https://youtu.be/kCc8FmEb1nY?si=umG3WZzNv6TyMz43), although several features were added:
+In this project, a generative transformer-based large language model (LLM) was implemented from scratch in Python using the PyTorch deep learning framewwork. This project was inspired by Andrej Karpathy's excellent [LLM tutorial](https://youtu.be/kCc8FmEb1nY?si=umG3WZzNv6TyMz43), although several features were added:
 
 - Parameterization of all global variables
 - Refactoring of training script into functional components to facilitate debugging
@@ -12,10 +12,9 @@ In this project, a generative transformer-based large language model (LLM) was i
 
 This project contains several modules that can be used to build generative transformer models in PyTorch.
 
-The classes included in the llm.py file are based on the Decoder portion of the transformer model architecture 
-decsribed in the famous [Attention Is All You Need](https://arxiv.org/abs/1706.03762) paper. By intelligently stacking multiple transformer blocks, a powerful language model can be trained in a more computationally efficient fashion than recursive language models.
+The classes included in the llm.py file are based on the Decoder portion of the transformer model architecture decsribed in the famous [Attention Is All You Need](https://arxiv.org/abs/1706.03762) paper. By intelligently stacking multiple transformer blocks, a powerful language model can be trained in a more computationally efficient fashion than recursive language models.
 
-Although higher performance can be achieved using word- or syllable-level embeddings, character-level embeddings were used in this project to reduce the dimensionality of the dataset and make training feasible with a household computer.
+Although higher performance can be achieved with word- or syllable-level embeddings, character-level embeddings were used in this project to reduce the dimensionality of the dataset and make training feasible with a household computer.
 
 ## Getting Started
 
