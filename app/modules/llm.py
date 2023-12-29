@@ -76,7 +76,7 @@ class Head(nn.Module):
             The output tensor of aggregated self-attention information
             across head_size dimensions.
         """
-        # x dimensions: (batch_size, block_size, emedding_dim)
+        # x dimensions: (batch_size, block_size, embedding_dim)
         B, T, E = x.shape
         k = self.key(x)   # (B, T, head_size)
         q = self.query(x) # (B, T, head_size)
@@ -314,7 +314,7 @@ class LLM(nn.Module):
         - T: Time, i.e. number of tokens per sequence (block size)
 
         If a target tensor (y) is provided, it must also be of shape
-        B x T. Each elemnt in y contains the next token for the
+        B x T. Each element in y contains the next token for the
         corresponding subsequence in x.
 
         Parameters
@@ -331,7 +331,7 @@ class LLM(nn.Module):
         -------
         logits : Tensor
             The logits of all possible next tokens (vocab size) for each
-            subsequernce in x.
+            subsequence in x.
 
         loss : Tensor
             The cross-entropy loss of the predicted next tokens for each
@@ -353,7 +353,7 @@ class LLM(nn.Module):
 
         # Character information is captured through the token embedding,
         # whereas positional information is captured through the
-        # poisition embedding
+        # position embedding
         tok_vect = self.token_embeddings(x) # (B, T, n_embed)
 
         # (T, n_embed) 
