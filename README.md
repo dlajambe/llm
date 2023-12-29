@@ -1,6 +1,6 @@
 # Large Language Model from Scratch
 
-In this project, a generative transformer-based large language model (LLM) was implemented from scratch in Python using the PyTorch deep learning framewwork. This project was inspired by Andrej Karpathy's excellent [LLM tutorial](https://youtu.be/kCc8FmEb1nY?si=umG3WZzNv6TyMz43), although several features were added:
+In this project, a generative, transformer-based large language model (LLM) was implemented from scratch in Python using the PyTorch deep learning framework. This project was inspired by Andrej Karpathy's excellent [LLM tutorial](https://youtu.be/kCc8FmEb1nY?si=umG3WZzNv6TyMz43), although several features were added:
 
 - Parameterization of all global variables
 - Refactoring of training script into functional components to facilitate debugging
@@ -12,13 +12,13 @@ In this project, a generative transformer-based large language model (LLM) was i
 
 This project contains several modules that can be used to build generative transformer models in PyTorch.
 
-The classes included in the llm.py file are based on the Decoder portion of the transformer model architecture decsribed in the famous [Attention Is All You Need](https://arxiv.org/abs/1706.03762) paper. By intelligently stacking multiple transformer blocks, a powerful language model can be trained in a more computationally efficient fashion than recursive language models.
+The classes included in the llm.py file are based on the decoder portion of the transformer model architecture described in [Attention Is All You Need](https://arxiv.org/abs/1706.03762) paper. By intelligently stacking multiple transformer blocks, a powerful language model can be trained in a more computationally efficient fashion than would be possible with recursive language models.
 
-Although higher performance can be achieved with word- or syllable-level embeddings, character-level embeddings were used in this project to reduce the dimensionality of the dataset and make training feasible with a household computer.
+Although higher performance can be achieved with word- or syllable-level embeddings, character-level embeddings were used in this project to reduce the dimensionality of the dataset and make training feasible on a household computer.
 
 ## Getting Started
 
-The `train_llm.py` script contains an example of how to use the project to build a generative large language model from an initial user-provided character sequence. A sample dataset is provided (Shakespearean scripts), but it can be substituted with any user-provided text file.
+The `train_llm.py` script contains an example of how to use the project modules to build a generative large language model from an initial user-provided character sequence. A sample dataset is provided (Shakespearean scripts), but it can be substituted with any user-provided text file.
 
 ### Dependencies
 
@@ -30,7 +30,7 @@ To install, simply clone the repository onto your machine and use your package m
 
 ### Execution
 
-This program can be run through the command line. With your environment activated, open a command prompt in the `app/` directory and execute the following command: 
+This program can be run through the command line. With your virtual environment activated, navigate to the `app/` directory and execute the following command: 
 ```
 python train_model.py
 ```
